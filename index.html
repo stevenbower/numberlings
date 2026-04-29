@@ -3873,25 +3873,98 @@ function tick(){
 }
 
 function separateShapes(a, b){
+  // If either shape is being dragged, don't separate. The user is in control of the
+  // dragged shape, and we don't want the static one to scoot away from snap-friendly
+  // positions (especially inner corners of L-shapes). The dragged shape can pass
+  // through visually; the snap engine handles final placement on release.
+  if(a.dragging || b.dragging) return;
+
+  // Quick AABB reject for performance
   const ax = a.x, ay = a.y, aw = a._bbox.w, ah = a._bbox.h;
   const bx = b.x, by = b.y, bw = b._bbox.w, bh = b._bbox.h;
-  if(ax+aw < bx || bx+bw < ax) return;
-  if(ay+ah < by || by+bh < ay) return;
-  const overlapX = Math.min(ax+aw, bx+bw) - Math.max(ax, bx);
-  const overlapY = Math.min(ay+ah, by+bh) - Math.max(ay, by);
+  if(ax+aw <= bx || bx+bw <= ax) return;
+  if(ay+ah <= by || by+bh <= ay) return;
+
+  // Cell-level overlap detection: only push if any actual cell of A overlaps any actual cell of B.
+  // Empty interior space (concave corners) shouldn't trigger separation — that's where snapping happens.
+  const overlap = computeCellLevelOverlap(a, b);
+  if(!overlap) return;
+
+  // Use the cell overlap region as the push amount
+  const overlapX = overlap.w;
+  const overlapY = overlap.h;
   if(overlapX < overlapY){
     const push = overlapX/2;
-    if(ax < bx){ if(!a.dragging) a.x -= push; if(!b.dragging) b.x += push; }
-    else       { if(!a.dragging) a.x += push; if(!b.dragging) b.x -= push; }
+    if(overlap.aLeftOfB){
+      if(!a.dragging) a.x -= push; if(!b.dragging) b.x += push;
+    } else {
+      if(!a.dragging) a.x += push; if(!b.dragging) b.x -= push;
+    }
     if(!a.dragging) a.vx *= 0.5;
     if(!b.dragging) b.vx *= 0.5;
   } else {
     const push = overlapY/2;
-    if(ay < by){ if(!a.dragging) a.y -= push; if(!b.dragging) b.y += push; }
-    else       { if(!a.dragging) a.y += push; if(!b.dragging) b.y -= push; }
+    if(overlap.aAboveB){
+      if(!a.dragging) a.y -= push; if(!b.dragging) b.y += push;
+    } else {
+      if(!a.dragging) a.y += push; if(!b.dragging) b.y -= push;
+    }
     if(!a.dragging) a.vy *= 0.5;
     if(!b.dragging) b.vy *= 0.5;
   }
+}
+
+/* Returns the largest cell-level overlap rectangle between any cell pair (a-cell, b-cell),
+   or null if no actual cell overlaps. The returned object describes the overlap region
+   plus the relative orientation needed by the separation push. */
+function computeCellLevelOverlap(a, b){
+  let bestArea = 0;
+  let best = null;
+  // Total accumulated overlap (so we move shapes by enough to separate completely)
+  let sumOverlapX = 0, sumOverlapY = 0;
+  let sumCenterDX = 0, sumCenterDY = 0;
+  let pairCount = 0;
+  let maxOverlapX = 0, maxOverlapY = 0;
+
+  for(const ac of a.cells){
+    const aCx = a.x + (ac.gx - a._bbox.minGx) * CELL;
+    const aCy = a.y + (ac.gy - a._bbox.minGy) * CELL;
+    for(const bc of b.cells){
+      const bCx = b.x + (bc.gx - b._bbox.minGx) * CELL;
+      const bCy = b.y + (bc.gy - b._bbox.minGy) * CELL;
+      // Each cell is CELL × CELL square at top-left (aCx, aCy)
+      const ox = Math.min(aCx + CELL, bCx + CELL) - Math.max(aCx, bCx);
+      const oy = Math.min(aCy + CELL, bCy + CELL) - Math.max(aCy, bCy);
+      if(ox > 0 && oy > 0){
+        const area = ox * oy;
+        if(area > bestArea){
+          bestArea = area;
+          best = {
+            ox, oy,
+            aCellCx: aCx + CELL/2,
+            aCellCy: aCy + CELL/2,
+            bCellCx: bCx + CELL/2,
+            bCellCy: bCy + CELL/2
+          };
+        }
+        if(ox > maxOverlapX) maxOverlapX = ox;
+        if(oy > maxOverlapY) maxOverlapY = oy;
+        sumCenterDX += (aCx - bCx);
+        sumCenterDY += (aCy - bCy);
+        pairCount++;
+      }
+    }
+  }
+  if(!best) return null;
+  // Push direction: from B's center toward A's center (averaged across overlapping pairs)
+  const avgDX = pairCount > 0 ? sumCenterDX / pairCount : (best.aCellCx - best.bCellCx);
+  const avgDY = pairCount > 0 ? sumCenterDY / pairCount : (best.aCellCy - best.bCellCy);
+  return {
+    w: maxOverlapX,
+    h: maxOverlapY,
+    aLeftOfB: avgDX < 0,
+    aAboveB: avgDY < 0
+  };
 }
 
 /* ===================================================================
