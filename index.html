@@ -35,7 +35,7 @@
   .cloud.c1{ width:140px; height:38px; top:8%; left:8%;}
   .cloud.c1::before{ width:60px; height:60px; top:-28px; left:18px;}
   .cloud.c1::after{ width:46px; height:46px; top:-22px; left:70px;}
-  .cloud.c2{ width:110px; height:30px; top:14%; right:10%;}
+  .cloud.c2{ width:110px; height:30px; top:6%; right:30%;}
   .cloud.c2::before{ width:48px; height:48px; top:-22px; left:14px;}
   .cloud.c2::after{ width:38px; height:38px; top:-18px; left:56px;}
 
@@ -65,7 +65,25 @@
   }
   .stat span{ font-size:11px; opacity:.6; margin-right:4px; font-weight:500;}
 
-  #stage{ position:fixed; inset:0; z-index:5; overflow:hidden;}
+  #stage{ position:fixed; inset:0; z-index:7; overflow:hidden;}
+
+  /* === Ground === */
+  #ground{
+    position:fixed; bottom:0; left:0; right:0;
+    height: 110px;
+    z-index:6;
+    pointer-events:none;
+  }
+  #ground svg{ display:block; width:100%; height:100%;}
+
+  /* Foreground grass blades that overlap shapes' feet for a "standing in grass" effect */
+  #ground-front{
+    position:fixed; bottom:0; left:0; right:0;
+    height: 56px;
+    z-index:11;
+    pointer-events:none;
+  }
+  #ground-front svg{ display:block; width:100%; height:100%;}
 
   /* === A "shape" = one composed character. The DOM container holds all its blocks. === */
   .shape{
@@ -110,19 +128,18 @@
   @keyframes snap-pulse{ from{opacity:.7;} to{opacity:1;} }
 
   #dock{
-    position:fixed; bottom:0; left:0; right:0; z-index:40;
-    padding:12px 14px 18px;
-    display:flex; gap:8px; align-items:center; justify-content:center;
+    position:fixed; top:50%; right:14px; z-index:40;
+    transform: translateY(-50%);
+    display:flex; align-items:center; justify-content:center;
     pointer-events:none;
   }
   .dock-inner{
     pointer-events:auto;
-    display:flex; gap:8px;
+    display:flex; flex-direction:column; gap:8px;
     background:var(--paper); border:3px solid var(--ink); border-radius:22px;
     padding:8px;
     box-shadow: 0 5px 0 var(--ink);
-    flex-wrap:wrap; justify-content:center;
-    max-width: 100%;
+    align-items:center;
   }
   .seed-btn{
     width:60px; height:60px;
@@ -134,6 +151,10 @@
     transition: transform .1s ease, box-shadow .1s ease;
     padding:6px;
     position:relative;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
   }
   .seed-btn:hover{ transform: translateY(-2px); box-shadow: 0 5px 0 var(--ink);}
   .seed-btn:active{ transform: translateY(2px); box-shadow: 0 1px 0 var(--ink);}
@@ -155,10 +176,77 @@
   }
   .icon-btn:hover{ transform: translateY(-2px); box-shadow: 0 5px 0 var(--ink);}
   .icon-btn:active{ transform: translateY(2px); box-shadow: 0 1px 0 var(--ink);}
-  .divider{ width:3px; height:38px; background:var(--ink); border-radius:2px; opacity:.2; margin:0 2px;}
+  .divider{ width:38px; height:3px; background:var(--ink); border-radius:2px; opacity:.2; margin:2px 0;}
+
+  /* === Long-press popup menu === */
+  #seed-menu{
+    position:fixed; z-index:70;
+    pointer-events:none;
+    opacity:0;
+    transition: opacity .18s ease;
+  }
+  #seed-menu.show{ opacity:1; pointer-events:auto;}
+  .menu-card{
+    background: var(--paper);
+    border:3px solid var(--ink); border-radius:22px;
+    padding:10px;
+    box-shadow: 0 6px 0 var(--ink);
+    display:grid;
+    grid-template-columns: repeat(3, 78px);
+    gap:8px;
+    position:relative;
+  }
+  .menu-card::after{
+    /* little arrow pointing right toward the dock */
+    content:"";
+    position:absolute;
+    right:-12px; top:50%; transform:translateY(-50%);
+    width:0; height:0;
+    border-top:10px solid transparent;
+    border-bottom:10px solid transparent;
+    border-left:12px solid var(--ink);
+  }
+  .menu-card::before{
+    content:"";
+    position:absolute;
+    right:-7px; top:50%; transform:translateY(-50%);
+    width:0; height:0;
+    border-top:8px solid transparent;
+    border-bottom:8px solid transparent;
+    border-left:10px solid var(--paper);
+    z-index:1;
+  }
+  .menu-tile{
+    width:78px; height:78px;
+    background: #fff;
+    border:2.5px solid var(--ink); border-radius:14px;
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+    position:relative;
+    box-shadow: 0 2px 0 var(--ink);
+    transition: transform .1s ease, box-shadow .1s ease;
+    padding:4px;
+  }
+  .menu-tile:hover{ transform: translateY(-2px); box-shadow: 0 4px 0 var(--ink);}
+  .menu-tile:active{ transform: translateY(1px); box-shadow: 0 1px 0 var(--ink);}
+  .menu-tile .tile-num{
+    position:absolute; top:2px; left:6px;
+    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:14px;
+    color: var(--ink);
+    text-shadow: 1px 1px 0 white;
+    z-index:2;
+  }
+  .menu-tile svg{ display:block; max-width:100%; max-height:100%;}
+
+  /* When the seed button is showing the menu, give it a "pressed" indicator */
+  .seed-btn.menu-open{
+    box-shadow: 0 1px 0 var(--ink);
+    transform: translateY(2px);
+  }
 
   #toast{
-    position:fixed; left:50%; bottom:100px; transform:translateX(-50%);
+    position:fixed; left:50%; bottom:40px; transform:translateX(-50%);
     z-index:60;
     background:var(--ink); color:var(--paper);
     font-family:'Fredoka', sans-serif; font-weight:600; font-size:13px;
@@ -230,15 +318,119 @@
 
 <div id="stage"></div>
 
+<!-- === Ground (back layer) === -->
+<div id="ground" aria-hidden="true">
+  <svg viewBox="0 0 1200 110" preserveAspectRatio="none">
+    <!-- back grass hills (darker, parallax feel) -->
+    <path d="M 0 50 Q 80 30 160 45 Q 240 60 320 40 Q 420 22 520 42 Q 620 58 720 38 Q 820 22 920 44 Q 1020 60 1100 42 Q 1180 30 1200 40 L 1200 110 L 0 110 Z"
+          fill="#7ed18a"/>
+    <!-- main grass top (light green band) -->
+    <path d="M 0 60 Q 70 50 140 58 Q 220 68 300 56 Q 380 46 470 58 Q 560 70 640 56 Q 730 44 820 58 Q 910 70 1000 58 Q 1090 48 1200 58 L 1200 110 L 0 110 Z"
+          fill="#9be3a8"/>
+    <!-- dirt under grass -->
+    <rect x="0" y="74" width="1200" height="36" fill="#c98a5a"/>
+    <!-- dirt darker stripe -->
+    <rect x="0" y="92" width="1200" height="18" fill="#a06a3e"/>
+    <!-- pebbles in dirt -->
+    <g fill="#7d4f2b">
+      <circle cx="60" cy="86" r="3"/>
+      <circle cx="180" cy="98" r="2.5"/>
+      <circle cx="240" cy="83" r="2"/>
+      <circle cx="380" cy="100" r="3"/>
+      <circle cx="500" cy="88" r="2.5"/>
+      <circle cx="640" cy="95" r="2"/>
+      <circle cx="760" cy="86" r="3"/>
+      <circle cx="880" cy="100" r="2.5"/>
+      <circle cx="1020" cy="89" r="2"/>
+      <circle cx="1140" cy="98" r="3"/>
+    </g>
+    <!-- a few flowers -->
+    <g>
+      <g transform="translate(150, 56)">
+        <circle cx="0" cy="0" r="3.5" fill="#ffd166"/>
+        <circle cx="-4" cy="-2" r="3" fill="#ff8fa3"/>
+        <circle cx="4" cy="-2" r="3" fill="#ff8fa3"/>
+        <circle cx="-4" cy="2" r="3" fill="#ff8fa3"/>
+        <circle cx="4" cy="2" r="3" fill="#ff8fa3"/>
+        <circle cx="0" cy="0" r="2" fill="#ffd166"/>
+      </g>
+      <g transform="translate(720, 54)">
+        <circle cx="0" cy="0" r="3.5" fill="#ffd166"/>
+        <circle cx="-4" cy="-2" r="3" fill="#bdb2ff"/>
+        <circle cx="4" cy="-2" r="3" fill="#bdb2ff"/>
+        <circle cx="-4" cy="2" r="3" fill="#bdb2ff"/>
+        <circle cx="4" cy="2" r="3" fill="#bdb2ff"/>
+        <circle cx="0" cy="0" r="2" fill="#ffd166"/>
+      </g>
+      <g transform="translate(990, 56)">
+        <circle cx="0" cy="0" r="3.5" fill="#ffd166"/>
+        <circle cx="-4" cy="-2" r="3" fill="#9bf6ff"/>
+        <circle cx="4" cy="-2" r="3" fill="#9bf6ff"/>
+        <circle cx="-4" cy="2" r="3" fill="#9bf6ff"/>
+        <circle cx="4" cy="2" r="3" fill="#9bf6ff"/>
+        <circle cx="0" cy="0" r="2" fill="#ffd166"/>
+      </g>
+    </g>
+  </svg>
+</div>
+
+<!-- === Ground front (grass blades that overlap shapes' feet) === -->
+<div id="ground-front" aria-hidden="true">
+  <svg viewBox="0 0 1200 56" preserveAspectRatio="none">
+    <!-- A subtle shadow band along the grass line so blocks "sit" on the ground -->
+    <ellipse cx="200" cy="14" rx="120" ry="3" fill="#000" opacity="0.06"/>
+    <ellipse cx="600" cy="16" rx="160" ry="3" fill="#000" opacity="0.06"/>
+    <ellipse cx="1000" cy="14" rx="140" ry="3" fill="#000" opacity="0.06"/>
+    <!-- foreground grass tufts that poke up over the feet -->
+    <g stroke="#3eb345" stroke-width="2.5" stroke-linecap="round" fill="none">
+      <path d="M 30 18 Q 32 8 34 18"/>
+      <path d="M 80 16 Q 82 4 84 16"/>
+      <path d="M 175 18 Q 177 6 179 18"/>
+      <path d="M 260 16 Q 262 4 264 16"/>
+      <path d="M 340 20 Q 342 8 344 20"/>
+      <path d="M 420 16 Q 422 4 424 16"/>
+      <path d="M 510 18 Q 512 4 514 18"/>
+      <path d="M 590 20 Q 592 8 594 20"/>
+      <path d="M 680 16 Q 682 4 684 16"/>
+      <path d="M 770 18 Q 772 4 774 18"/>
+      <path d="M 860 20 Q 862 8 864 20"/>
+      <path d="M 950 16 Q 952 4 954 16"/>
+      <path d="M 1040 18 Q 1042 4 1044 18"/>
+      <path d="M 1130 20 Q 1132 8 1134 20"/>
+    </g>
+    <!-- denser foreground blades (darker green for depth) -->
+    <g stroke="#2e8a37" stroke-width="2.2" stroke-linecap="round" fill="none">
+      <path d="M 55 18 Q 56 10 57 18"/>
+      <path d="M 130 20 Q 131 12 132 20"/>
+      <path d="M 220 19 Q 221 11 222 19"/>
+      <path d="M 310 18 Q 311 10 312 18"/>
+      <path d="M 460 19 Q 461 11 462 19"/>
+      <path d="M 540 20 Q 541 12 542 20"/>
+      <path d="M 640 18 Q 641 10 642 18"/>
+      <path d="M 730 20 Q 731 12 732 20"/>
+      <path d="M 820 19 Q 821 11 822 19"/>
+      <path d="M 910 18 Q 911 10 912 18"/>
+      <path d="M 1000 20 Q 1001 12 1002 20"/>
+      <path d="M 1090 19 Q 1091 11 1092 19"/>
+    </g>
+  </svg>
+</div>
+
 <div id="dock">
   <div class="dock-inner" id="dockInner"></div>
 </div>
 
 <div id="toast"></div>
 
+<!-- Long-press popup menu (populated by JS) -->
+<div id="seed-menu" aria-hidden="true">
+  <div class="menu-card" id="menuCard"></div>
+</div>
+
 <div id="intro">
   <h1>Number<span>lings</span></h1>
   <p>Tap to drop a One into the world. Stick Ones together to grow them up — Two, Three, Four, all the way up! Each number is a different friend with a different face.</p>
+  <p style="font-size:13px; opacity:0.8;">Tip: Hold down the +1 button to pick a pre-built friend!</p>
   <button class="start" id="startBtn">Let's Play!</button>
 </div>
 
@@ -304,7 +496,126 @@ seed.innerHTML = `
   </svg>
   <span class="lbl">+1</span>
 `;
-seed.addEventListener('click', () => spawnOne());
+/* ----- Long-press popup menu ----- */
+const seedMenu = document.getElementById('seed-menu');
+const menuCard = document.getElementById('menuCard');
+let menuOpen = false;
+let longPressTimer = null;
+let longPressTriggered = false;
+const LONG_PRESS_MS = 380;
+
+function buildMenu(){
+  menuCard.innerHTML = '';
+  // Render numbers 2 through 10
+  for(let n = 2; n <= 10; n++){
+    const tile = document.createElement('button');
+    tile.className = 'menu-tile';
+    tile.title = `Drop a ${palette(n).name}`;
+
+    // Build the SVG as a "preview" of that number, scaled to fit in 78x78
+    const layout = SHAPE_LAYOUTS[n];
+    const fakeShape = { id: 'preview-'+n, cells: layout.map(([gx,gy])=>({gx,gy})) };
+    const built = buildShapeSVG(fakeShape.cells, fakeShape);
+    // Strip explicit width/height so SVG scales to its container via viewBox
+    const scaledSvg = built.svg.replace(/width="\d+"\s*height="\d+"/, 'width="100%" height="100%"');
+    tile.innerHTML = `
+      <span class="tile-num">${n}</span>
+      <div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center;">
+        ${scaledSvg}
+      </div>
+    `;
+    tile.addEventListener('click', (e) => {
+      e.stopPropagation();
+      spawnShape(SHAPE_LAYOUTS[n]);
+      flashToast(`a wild ${palette(n).name} appears!`);
+      closeMenu();
+    });
+    menuCard.appendChild(tile);
+  }
+}
+
+function openMenu(){
+  if(menuOpen) return;
+  menuOpen = true;
+  seed.classList.add('menu-open');
+  // Position menu to the LEFT of the seed button, vertically centered on it
+  const r = seed.getBoundingClientRect();
+  // First show to measure
+  seedMenu.classList.add('show');
+  seedMenu.setAttribute('aria-hidden','false');
+  // Wait one frame then measure & position
+  requestAnimationFrame(() => {
+    const menuW = seedMenu.offsetWidth;
+    const menuH = seedMenu.offsetHeight;
+    let left = r.left - menuW - 16;
+    let top = r.top + r.height/2 - menuH/2;
+    // Keep on screen
+    left = Math.max(8, left);
+    top = Math.max(8, Math.min(window.innerHeight - menuH - 8, top));
+    seedMenu.style.left = left + 'px';
+    seedMenu.style.top = top + 'px';
+  });
+}
+
+function closeMenu(){
+  if(!menuOpen) return;
+  menuOpen = false;
+  seed.classList.remove('menu-open');
+  seedMenu.classList.remove('show');
+  seedMenu.setAttribute('aria-hidden','true');
+}
+
+// Tap outside to dismiss
+window.addEventListener('pointerdown', (e) => {
+  if(!menuOpen) return;
+  if(seedMenu.contains(e.target)) return;
+  if(seed.contains(e.target)) return;
+  closeMenu();
+}, true);
+
+// Long-press detection on the seed button
+seed.addEventListener('pointerdown', (e) => {
+  longPressTriggered = false;
+  clearTimeout(longPressTimer);
+  longPressTimer = setTimeout(() => {
+    longPressTriggered = true;
+    buildMenu();
+    openMenu();
+  }, LONG_PRESS_MS);
+});
+
+seed.addEventListener('pointerup', () => {
+  clearTimeout(longPressTimer);
+});
+seed.addEventListener('pointerleave', () => {
+  clearTimeout(longPressTimer);
+});
+seed.addEventListener('pointercancel', () => {
+  clearTimeout(longPressTimer);
+});
+
+seed.addEventListener('click', (e) => {
+  if(longPressTriggered){
+    // Suppress the click that would otherwise follow the long-press
+    longPressTriggered = false;
+    e.preventDefault();
+    return;
+  }
+  if(menuOpen){
+    // ignore clicks while menu is open
+    return;
+  }
+  spawnOne();
+});
+
+// Also support right-click as an "instant menu" affordance for desktop
+seed.addEventListener('contextmenu', (e) => {
+  e.preventDefault();
+  longPressTriggered = true;
+  clearTimeout(longPressTimer);
+  buildMenu();
+  openMenu();
+});
 dockInner.appendChild(seed);
 
 const div1 = document.createElement('div'); div1.className='divider'; dockInner.appendChild(div1);
@@ -872,20 +1183,51 @@ function drawStar(cx, cy, r, fill, stroke){
 /* ===================================================================
    SHAPE OBJECTS
 =================================================================== */
+
+// Pre-built shape configurations matching the show
+const SHAPE_LAYOUTS = {
+  1:  [[0,0]],
+  2:  [[0,0],[0,1]],
+  3:  [[0,0],[0,1],[0,2]],
+  4:  [[0,0],[1,0],[0,1],[1,1]],
+  5:  [[0,0],[0,1],[0,2],[0,3],[0,4]],
+  6:  [[0,0],[1,0],[0,1],[1,1],[0,2],[1,2]],
+  7:  [[0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[0,6]],
+  8:  [[0,0],[1,0],[0,1],[1,1],[0,2],[1,2],[0,3],[1,3]],
+  9:  [[0,0],[1,0],[2,0],[0,1],[1,1],[2,1],[0,2],[1,2],[2,2]],
+  10: [[0,0],[0,1],[0,2],[0,3],[0,4],[0,5],[0,6],[0,7],[0,8],[0,9]]
+};
+
 function spawnOne(x, y){
+  spawnShape(SHAPE_LAYOUTS[1], x, y);
+}
+
+function spawnShape(layout, x, y){
   const stageRect = stage.getBoundingClientRect();
+  // figure out shape's bounding size to position spawn cleanly
+  let maxGx = 0, maxGy = 0;
+  for(const [gx,gy] of layout){
+    if(gx > maxGx) maxGx = gx;
+    if(gy > maxGy) maxGy = gy;
+  }
+  const shapeW = (maxGx+1) * CELL;
+  const shapeH = (maxGy+1) * CELL;
+
   if(x === undefined){
-    x = stageRect.width/2 - CELL/2 + (Math.random()*120 - 60);
-    y = stageRect.height - 200 - CELL + (Math.random()*40 - 20);
-  } else { x -= CELL/2; y -= CELL/2; }
+    // Spawn near the dock (right side, mid screen). Account for shape size so big shapes don't spawn off-screen.
+    x = stageRect.width - 180 - shapeW + (Math.random()*40 - 20);
+    y = Math.max(80, stageRect.height/2 - shapeH/2 + (Math.random()*60 - 30));
+  } else { x -= shapeW/2; y -= shapeH/2; }
+
+  const cells = layout.map(([gx,gy]) => ({ gx, gy }));
 
   const shape = {
     id: nextShapeId++,
-    cells: [{ gx:0, gy:0 }],
+    cells,
     el: null,
     x, y,
-    vx:(Math.random()*2-1)*0.4,
-    vy:-1.2 - Math.random(),
+    vx:(Math.random()*2-1)*1.2 - 1.5,
+    vy:-2 - Math.random()*1.5,
     rot:(Math.random()*8 - 4),
     rotV:(Math.random()*0.4 - 0.2),
     dragging:false,
@@ -904,6 +1246,7 @@ function spawnOne(x, y){
   shapes.push(shape);
   applyShapeTransform(shape);
   updateStats();
+  return shape;
 }
 
 function rebuildShapeDOM(shape){
@@ -1154,11 +1497,16 @@ function tick(){
   const W = stageRect.width;
   const H = stageRect.height;
   const TOP = 64;
-  const BOTTOM = H - 90;
+  // Ground: visually 110px tall with grass band ~50-70px from top of ground.
+  // We let blocks rest on top of the grass band, ~60px from bottom of viewport.
+  const BOTTOM = H - 60;
+  // Reserve right margin for the vertical dock (~80px)
+  const RIGHT_MARGIN = 86;
 
   for(const s of shapes){
     if(s.dragging) continue;
-    s.vy += 0.018 * dt;
+    // gravity is stronger when in the air, lighter when resting
+    s.vy += 0.22 * dt;
     s.vx *= Math.pow(0.985, dt);
     s.vy *= Math.pow(0.985, dt);
     s.x += s.vx * dt;
@@ -1168,9 +1516,23 @@ function tick(){
 
     const bw = s._bbox.w, bh = s._bbox.h;
     if(s.x < 0){ s.x = 0; s.vx = Math.abs(s.vx)*0.6;}
-    if(s.x + bw > W){ s.x = W - bw; s.vx = -Math.abs(s.vx)*0.6;}
+    if(s.x + bw > W - RIGHT_MARGIN){ s.x = W - RIGHT_MARGIN - bw; s.vx = -Math.abs(s.vx)*0.6;}
     if(s.y < TOP){ s.y = TOP; s.vy = Math.abs(s.vy)*0.4;}
-    if(s.y + bh > BOTTOM){ s.y = BOTTOM - bh; s.vy = -Math.abs(s.vy)*0.4; s.vx *= 0.9; s.rotV *= 0.7;}
+    if(s.y + bh > BOTTOM){
+      s.y = BOTTOM - bh;
+      // bounce only if moving fast, otherwise rest
+      if(Math.abs(s.vy) > 1.2){ s.vy = -Math.abs(s.vy)*0.32; }
+      else { s.vy = 0; }
+      // friction on ground
+      s.vx *= 0.86;
+      s.rotV *= 0.6;
+      // also damp out the rotation toward 0 when grounded
+      if(Math.abs(s.rot) > 0.2){
+        s.rot += (0 - s.rot) * 0.08 * dt;
+      } else {
+        s.rot = 0;
+      }
+    }
 
     applyShapeTransform(s);
   }
@@ -1308,9 +1670,10 @@ requestAnimationFrame(tick);
 
 window.addEventListener('resize', () => {
   const r = stage.getBoundingClientRect();
+  const RIGHT_MARGIN = 86;
   for(const s of shapes){
-    if(s.x + s._bbox.w > r.width) s.x = r.width - s._bbox.w - 4;
-    if(s.y + s._bbox.h > r.height - 90) s.y = r.height - 90 - s._bbox.h - 4;
+    if(s.x + s._bbox.w > r.width - RIGHT_MARGIN) s.x = r.width - RIGHT_MARGIN - s._bbox.w - 4;
+    if(s.y + s._bbox.h > r.height - 60) s.y = r.height - 60 - s._bbox.h - 4;
     applyShapeTransform(s);
   }
 });
