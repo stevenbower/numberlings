@@ -450,12 +450,141 @@
   }
   #intro .start:active{ transform:translateY(3px); box-shadow:0 2px 0 var(--ink);}
 
+  /* === Profile picker === */
+  #profile-overlay{
+    position:fixed; inset:0; z-index:90;
+    background: linear-gradient(180deg, #fff7ee 0%, #ffe9f3 50%, #e6f7ff 100%);
+    display:none;
+    align-items:center; justify-content:center;
+    flex-direction:column; gap:18px;
+    padding:24px;
+    overflow-y: auto;
+  }
+  #profile-overlay.show{ display:flex;}
+  #profile-overlay h2{
+    font-family:'Baloo 2', sans-serif; font-weight:800;
+    font-size: clamp(28px, 7vw, 42px);
+    margin:0; letter-spacing:-0.02em; line-height:1;
+    text-align:center;
+  }
+  #profile-overlay p.subtitle{
+    font-family:'Fredoka', sans-serif; font-weight:500; font-size:15px;
+    color: var(--ink); opacity:0.75;
+    margin:0; text-align:center;
+  }
+  .profile-name-row{
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+  }
+  .profile-name-row label{
+    font-family:'Baloo 2', sans-serif; font-weight:700; font-size:13px;
+    color:var(--ink); opacity:0.7;
+    letter-spacing: 0.05em; text-transform:uppercase;
+  }
+  #profileNameInput{
+    font-family:'Baloo 2', sans-serif; font-weight:800;
+    font-size:22px;
+    background: white;
+    border:3px solid var(--ink); border-radius:16px;
+    padding:10px 18px;
+    text-align:center;
+    box-shadow: 0 4px 0 var(--ink);
+    outline:none;
+    width: 240px;
+    color:var(--ink);
+  }
+  #profileNameInput:focus{
+    box-shadow: 0 4px 0 var(--ink), 0 0 0 4px rgba(255,107,157,0.3);
+  }
+  .avatar-section{
+    display:flex; flex-direction:column; align-items:center; gap:10px;
+  }
+  .avatar-section .avatar-label{
+    font-family:'Baloo 2', sans-serif; font-weight:700; font-size:13px;
+    color:var(--ink); opacity:0.7;
+    letter-spacing: 0.05em; text-transform:uppercase;
+  }
+  .avatar-grid{
+    display:grid;
+    grid-template-columns: repeat(4, 72px);
+    gap: 12px;
+    justify-content:center;
+  }
+  .avatar-tile{
+    width:72px; height:72px;
+    border:3px solid var(--ink); border-radius:18px;
+    background: white;
+    cursor:pointer;
+    overflow:hidden;
+    box-shadow: 0 3px 0 var(--ink);
+    display:flex; align-items:center; justify-content:center;
+    transition: transform .12s ease, box-shadow .12s ease;
+    padding:0;
+  }
+  .avatar-tile:hover{ transform: translateY(-2px); box-shadow: 0 5px 0 var(--ink);}
+  .avatar-tile:active{ transform: translateY(1px); box-shadow: 0 1px 0 var(--ink);}
+  .avatar-tile.selected{
+    box-shadow: 0 3px 0 var(--ink), 0 0 0 4px #ffd166;
+    transform: translateY(-2px);
+  }
+  .avatar-tile svg{ display:block; width:100%; height:100%;}
+
+  #profileSubmitBtn{
+    margin-top:8px;
+    font-family:'Baloo 2', sans-serif; font-size:18px; font-weight:800;
+    background:#ff6b9d; color:var(--paper);
+    padding:14px 32px;
+    border:3px solid var(--ink); border-radius:18px;
+    cursor:pointer;
+    box-shadow: 0 5px 0 var(--ink);
+  }
+  #profileSubmitBtn:active{ transform:translateY(3px); box-shadow:0 2px 0 var(--ink);}
+  #profileSubmitBtn:disabled{
+    opacity:0.5;
+    cursor:not-allowed;
+  }
+
+  /* Header avatar */
+  .header-avatar{
+    pointer-events:auto;
+    display:flex; align-items:center; gap:6px;
+    background: var(--paper);
+    border:2.5px solid var(--ink); border-radius:14px;
+    padding:3px 10px 3px 3px;
+    box-shadow: 0 2px 0 var(--ink);
+    cursor:pointer;
+    transition: transform .1s ease;
+    margin-top: 6px;
+    width: fit-content;
+  }
+  .header-avatar:hover{ transform: translateY(-1px);}
+  .header-avatar:active{ transform: translateY(1px);}
+  .header-avatar .av{
+    width:26px; height:26px;
+    border:2px solid var(--ink); border-radius:7px;
+    overflow:hidden;
+    flex-shrink:0;
+    background:white;
+  }
+  .header-avatar .av svg{ display:block; width:100%; height:100%;}
+  .header-avatar .name{
+    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:13px;
+    color:var(--ink);
+    max-width: 110px;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+
   @media (max-width:520px){
     .title{ font-size:22px;}
     .title small{ font-size:10px;}
     .stat{ font-size:11px; padding:5px 9px;}
     .seed-btn{ width:54px; height:54px;}
     .icon-btn{ width:46px; height:46px; font-size:18px;}
+    .avatar-grid{ grid-template-columns: repeat(4, 60px); gap: 10px;}
+    .avatar-tile{ width:60px; height:60px;}
+    .header-avatar .name{ max-width: 80px; font-size:12px;}
+    .header-avatar .av{ width:28px; height:28px;}
   }
 </style>
 </head>
@@ -465,9 +594,13 @@
 <div class="cloud c2"></div>
 
 <header>
-  <div class="title">
-    Numberlings
-    <small>each number, a friend!</small>
+  <div class="title" id="titleBlock">
+    <span id="titleText">Numberlings</span>
+    <small id="titleTagline">each number, a friend!</small>
+    <div class="header-avatar" id="headerAvatar" title="Change profile" style="display:none;">
+      <div class="av" id="headerAvatarSvg"></div>
+      <div class="name" id="headerAvatarName">Friend</div>
+    </div>
   </div>
   <div class="stats">
     <div class="stat"><span>blocks</span><b id="pop">0</b></div>
@@ -604,6 +737,21 @@
   <button class="start" id="startBtn">Let's Play!</button>
 </div>
 
+<!-- Profile picker overlay (shown on first load or when changing profile) -->
+<div id="profile-overlay" aria-hidden="true">
+  <h2 id="profileHeading">Hi there!</h2>
+  <p class="subtitle">What should we call you?</p>
+  <div class="profile-name-row">
+    <label for="profileNameInput">Your name</label>
+    <input id="profileNameInput" type="text" maxlength="16" placeholder="Type a name…" autocomplete="off"/>
+  </div>
+  <div class="avatar-section">
+    <div class="avatar-label">Pick an avatar</div>
+    <div class="avatar-grid" id="avatarGrid"></div>
+  </div>
+  <button id="profileSubmitBtn" disabled>Let's Play!</button>
+</div>
+
 <script>
 /* ===================================================================
    NUMBERLINGS — kid show inspired
@@ -616,6 +764,277 @@
 const CELL = 70;          // grid cell size
 const SNAP_DIST = 32;
 const STROKE = 3;
+
+/* ===================================================================
+   PROFILE — name + avatar, stored in localStorage
+=================================================================== */
+const PROFILE_KEY = 'numberlings.profile.v1';
+
+// Cute avatar designs — each is a self-contained SVG
+const AVATARS = {
+  cat: { name: "Kit", svg: `
+    <svg viewBox="0 0 60 60">
+      <rect x="0" y="0" width="60" height="60" fill="#ffd6a5"/>
+      <path d="M 12 20 L 8 8 L 20 18 Z" fill="#ffd6a5" stroke="#2a2030" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M 48 20 L 52 8 L 40 18 Z" fill="#ffd6a5" stroke="#2a2030" stroke-width="2" stroke-linejoin="round"/>
+      <ellipse cx="30" cy="34" rx="20" ry="18" fill="#ffd6a5" stroke="#2a2030" stroke-width="2.5"/>
+      <circle cx="22" cy="32" r="3.5" fill="#2a2030"/>
+      <circle cx="38" cy="32" r="3.5" fill="#2a2030"/>
+      <circle cx="22.8" cy="31" r="1.2" fill="white"/>
+      <circle cx="38.8" cy="31" r="1.2" fill="white"/>
+      <path d="M 27 41 L 30 44 L 33 41 Z" fill="#ff8fa3" stroke="#2a2030" stroke-width="1.5"/>
+      <path d="M 30 44 Q 26 47 24 44" stroke="#2a2030" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path d="M 30 44 Q 34 47 36 44" stroke="#2a2030" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <line x1="14" y1="36" x2="6" y2="34" stroke="#2a2030" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="14" y1="38" x2="6" y2="40" stroke="#2a2030" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="46" y1="36" x2="54" y2="34" stroke="#2a2030" stroke-width="1.5" stroke-linecap="round"/>
+      <line x1="46" y1="38" x2="54" y2="40" stroke="#2a2030" stroke-width="1.5" stroke-linecap="round"/>
+    </svg>
+  `},
+  fox: { name: "Foxy", svg: `
+    <svg viewBox="0 0 60 60">
+      <rect x="0" y="0" width="60" height="60" fill="#ffe0a8"/>
+      <path d="M 8 18 L 14 8 L 22 22 Z" fill="#f47c2c" stroke="#2a2030" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M 52 18 L 46 8 L 38 22 Z" fill="#f47c2c" stroke="#2a2030" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M 30 16 Q 12 22 14 38 Q 18 50 30 50 Q 42 50 46 38 Q 48 22 30 16 Z" fill="#f47c2c" stroke="#2a2030" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M 30 32 Q 22 36 22 44 Q 26 48 30 47 Q 34 48 38 44 Q 38 36 30 32 Z" fill="white" stroke="#2a2030" stroke-width="2" stroke-linejoin="round"/>
+      <circle cx="22" cy="30" r="3.5" fill="#2a2030"/>
+      <circle cx="38" cy="30" r="3.5" fill="#2a2030"/>
+      <circle cx="22.8" cy="29" r="1.2" fill="white"/>
+      <circle cx="38.8" cy="29" r="1.2" fill="white"/>
+      <ellipse cx="30" cy="38" rx="2.5" ry="2" fill="#2a2030"/>
+      <path d="M 30 40 Q 28 43 26 42" stroke="#2a2030" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+      <path d="M 30 40 Q 32 43 34 42" stroke="#2a2030" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+    </svg>
+  `},
+  bunny: { name: "Hoppy", svg: `
+    <svg viewBox="0 0 60 60">
+      <rect x="0" y="0" width="60" height="60" fill="#ffe5ec"/>
+      <ellipse cx="20" cy="14" rx="5" ry="10" fill="white" stroke="#2a2030" stroke-width="2"/>
+      <ellipse cx="40" cy="14" rx="5" ry="10" fill="white" stroke="#2a2030" stroke-width="2"/>
+      <ellipse cx="20" cy="14" rx="2" ry="6" fill="#ff8fa3"/>
+      <ellipse cx="40" cy="14" rx="2" ry="6" fill="#ff8fa3"/>
+      <ellipse cx="30" cy="36" rx="18" ry="16" fill="white" stroke="#2a2030" stroke-width="2.5"/>
+      <circle cx="22" cy="33" r="3.5" fill="#2a2030"/>
+      <circle cx="38" cy="33" r="3.5" fill="#2a2030"/>
+      <circle cx="22.8" cy="32" r="1.2" fill="white"/>
+      <circle cx="38.8" cy="32" r="1.2" fill="white"/>
+      <path d="M 28 40 Q 30 43 32 40 Z" fill="#ff8fa3" stroke="#2a2030" stroke-width="1.5"/>
+      <path d="M 30 43 L 30 45" stroke="#2a2030" stroke-width="1.8"/>
+      <path d="M 30 45 Q 27 47 25 45" stroke="#2a2030" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path d="M 30 45 Q 33 47 35 45" stroke="#2a2030" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <ellipse cx="18" cy="42" rx="3" ry="2" fill="#ff8fa3" opacity="0.6"/>
+      <ellipse cx="42" cy="42" rx="3" ry="2" fill="#ff8fa3" opacity="0.6"/>
+    </svg>
+  `},
+  bear: { name: "Bear", svg: `
+    <svg viewBox="0 0 60 60">
+      <rect x="0" y="0" width="60" height="60" fill="#caffbf"/>
+      <circle cx="14" cy="16" r="6" fill="#a06a3e" stroke="#2a2030" stroke-width="2"/>
+      <circle cx="46" cy="16" r="6" fill="#a06a3e" stroke="#2a2030" stroke-width="2"/>
+      <circle cx="14" cy="16" r="3" fill="#ff8fa3"/>
+      <circle cx="46" cy="16" r="3" fill="#ff8fa3"/>
+      <circle cx="30" cy="34" r="20" fill="#a06a3e" stroke="#2a2030" stroke-width="2.5"/>
+      <ellipse cx="30" cy="40" rx="11" ry="9" fill="#e3c79b" stroke="#2a2030" stroke-width="2"/>
+      <circle cx="22" cy="32" r="3.5" fill="#2a2030"/>
+      <circle cx="38" cy="32" r="3.5" fill="#2a2030"/>
+      <circle cx="22.8" cy="31" r="1.2" fill="white"/>
+      <circle cx="38.8" cy="31" r="1.2" fill="white"/>
+      <ellipse cx="30" cy="37" rx="3" ry="2.5" fill="#2a2030"/>
+      <path d="M 30 40 Q 27 44 24 42" stroke="#2a2030" stroke-width="2" fill="none" stroke-linecap="round"/>
+      <path d="M 30 40 Q 33 44 36 42" stroke="#2a2030" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </svg>
+  `},
+  robot: { name: "Bolt", svg: `
+    <svg viewBox="0 0 60 60">
+      <rect x="0" y="0" width="60" height="60" fill="#bde0fe"/>
+      <line x1="30" y1="6" x2="30" y2="12" stroke="#2a2030" stroke-width="2.5"/>
+      <circle cx="30" cy="6" r="3" fill="#ec3d3d" stroke="#2a2030" stroke-width="2"/>
+      <rect x="12" y="14" width="36" height="36" rx="6" fill="#9aa3ad" stroke="#2a2030" stroke-width="2.5"/>
+      <rect x="16" y="20" width="28" height="14" rx="3" fill="white" stroke="#2a2030" stroke-width="2"/>
+      <circle cx="23" cy="27" r="3.5" fill="#42a8d6"/>
+      <circle cx="37" cy="27" r="3.5" fill="#42a8d6"/>
+      <circle cx="23" cy="27" r="1.5" fill="#2a2030"/>
+      <circle cx="37" cy="27" r="1.5" fill="#2a2030"/>
+      <rect x="20" y="40" width="20" height="4" rx="1" fill="#2a2030"/>
+      <line x1="24" y1="44" x2="24" y2="46" stroke="#2a2030" stroke-width="2"/>
+      <line x1="30" y1="44" x2="30" y2="46" stroke="#2a2030" stroke-width="2"/>
+      <line x1="36" y1="44" x2="36" y2="46" stroke="#2a2030" stroke-width="2"/>
+    </svg>
+  `},
+  star: { name: "Twinkle", svg: `
+    <svg viewBox="0 0 60 60">
+      <rect x="0" y="0" width="60" height="60" fill="#fdffb6"/>
+      <polygon points="30,8 36,24 53,24 39,34 44,50 30,40 16,50 21,34 7,24 24,24"
+               fill="#fcd722" stroke="#2a2030" stroke-width="2.5" stroke-linejoin="round"/>
+      <circle cx="25" cy="28" r="3" fill="#2a2030"/>
+      <circle cx="35" cy="28" r="3" fill="#2a2030"/>
+      <circle cx="25.8" cy="27" r="1" fill="white"/>
+      <circle cx="35.8" cy="27" r="1" fill="white"/>
+      <path d="M 26 34 Q 30 38 34 34" stroke="#2a2030" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+      <ellipse cx="22" cy="31" rx="2.5" ry="1.8" fill="#ff8fa3" opacity="0.6"/>
+      <ellipse cx="38" cy="31" rx="2.5" ry="1.8" fill="#ff8fa3" opacity="0.6"/>
+    </svg>
+  `},
+  octopus: { name: "Inky", svg: `
+    <svg viewBox="0 0 60 60">
+      <rect x="0" y="0" width="60" height="60" fill="#ffc6ff"/>
+      <ellipse cx="30" cy="22" rx="18" ry="16" fill="#bdb2ff" stroke="#2a2030" stroke-width="2.5"/>
+      <path d="M 14 28 Q 8 44 14 50 Q 18 46 16 38" stroke="#2a2030" stroke-width="2" fill="#bdb2ff" stroke-linejoin="round"/>
+      <path d="M 22 32 Q 20 50 24 52 Q 28 48 26 40" stroke="#2a2030" stroke-width="2" fill="#bdb2ff" stroke-linejoin="round"/>
+      <path d="M 38 32 Q 40 50 36 52 Q 32 48 34 40" stroke="#2a2030" stroke-width="2" fill="#bdb2ff" stroke-linejoin="round"/>
+      <path d="M 46 28 Q 52 44 46 50 Q 42 46 44 38" stroke="#2a2030" stroke-width="2" fill="#bdb2ff" stroke-linejoin="round"/>
+      <circle cx="22" cy="20" r="3.5" fill="white" stroke="#2a2030" stroke-width="1.5"/>
+      <circle cx="38" cy="20" r="3.5" fill="white" stroke="#2a2030" stroke-width="1.5"/>
+      <circle cx="22" cy="20" r="1.8" fill="#2a2030"/>
+      <circle cx="38" cy="20" r="1.8" fill="#2a2030"/>
+      <path d="M 25 27 Q 30 31 35 27" stroke="#2a2030" stroke-width="2" fill="none" stroke-linecap="round"/>
+    </svg>
+  `},
+  dino: { name: "Rex", svg: `
+    <svg viewBox="0 0 60 60">
+      <rect x="0" y="0" width="60" height="60" fill="#9bf6ff"/>
+      <path d="M 14 24 L 18 14 L 22 24 L 26 12 L 30 24 L 34 12 L 38 24 L 42 14 L 46 24"
+            fill="#3eb345" stroke="#2a2030" stroke-width="2" stroke-linejoin="round"/>
+      <ellipse cx="30" cy="36" rx="20" ry="14" fill="#3eb345" stroke="#2a2030" stroke-width="2.5"/>
+      <ellipse cx="30" cy="42" rx="11" ry="6" fill="#caffbf"/>
+      <circle cx="22" cy="32" r="3.5" fill="#2a2030"/>
+      <circle cx="38" cy="32" r="3.5" fill="#2a2030"/>
+      <circle cx="22.8" cy="31" r="1.2" fill="white"/>
+      <circle cx="38.8" cy="31" r="1.2" fill="white"/>
+      <path d="M 24 41 L 28 39 L 32 41 L 36 39" stroke="#2a2030" stroke-width="1.5" fill="none"/>
+      <path d="M 22 40 Q 30 47 38 40" stroke="#2a2030" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    </svg>
+  `}
+};
+const AVATAR_IDS = Object.keys(AVATARS);
+
+let userProfile = null; // {name, avatarId}
+
+function loadProfile(){
+  try{
+    const raw = localStorage.getItem(PROFILE_KEY);
+    if(!raw) return null;
+    const p = JSON.parse(raw);
+    if(p && typeof p.name === 'string' && AVATARS[p.avatarId]){
+      return p;
+    }
+  } catch(_){}
+  return null;
+}
+
+function saveProfile(p){
+  try{ localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch(_){}
+}
+
+function showProfilePicker(initial, onDone){
+  const overlay = document.getElementById('profile-overlay');
+  const heading = document.getElementById('profileHeading');
+  const nameInput = document.getElementById('profileNameInput');
+  const grid = document.getElementById('avatarGrid');
+  const submit = document.getElementById('profileSubmitBtn');
+
+  // Build avatar grid
+  grid.innerHTML = '';
+  let selected = (userProfile && userProfile.avatarId) || AVATAR_IDS[0];
+  for(const id of AVATAR_IDS){
+    const tile = document.createElement('button');
+    tile.className = 'avatar-tile';
+    tile.dataset.id = id;
+    tile.innerHTML = AVATARS[id].svg;
+    tile.addEventListener('click', () => {
+      selected = id;
+      grid.querySelectorAll('.avatar-tile').forEach(t => t.classList.toggle('selected', t.dataset.id === id));
+      validateForm();
+    });
+    if(id === selected) tile.classList.add('selected');
+    grid.appendChild(tile);
+  }
+
+  // Pre-fill name if existing profile
+  nameInput.value = (userProfile && userProfile.name) || '';
+  heading.textContent = initial ? "Hi there!" : "Edit Profile";
+  submit.textContent = initial ? "Let's Play!" : "Save";
+
+  function validateForm(){
+    const name = nameInput.value.trim();
+    submit.disabled = !(name.length > 0 && selected);
+  }
+
+  // Use a fresh handler each open to avoid stacking listeners
+  if(submit._handler) submit.removeEventListener('click', submit._handler);
+  if(nameInput._handler) nameInput.removeEventListener('input', nameInput._handler);
+
+  nameInput._handler = validateForm;
+  nameInput.addEventListener('input', validateForm);
+  validateForm();
+
+  function onSubmit(){
+    const name = nameInput.value.trim();
+    if(!name || !selected) return;
+    userProfile = { name, avatarId: selected };
+    saveProfile(userProfile);
+    overlay.classList.remove('show');
+    overlay.setAttribute('aria-hidden','true');
+    updateHeaderAvatar();
+    if(initial){
+      personalizeIntro();
+    } else {
+      flashToast(`looking sharp, ${name}!`);
+    }
+    if(typeof onDone === 'function') onDone();
+  }
+  submit._handler = onSubmit;
+  submit.addEventListener('click', onSubmit);
+
+  overlay.classList.add('show');
+  overlay.setAttribute('aria-hidden','false');
+  setTimeout(() => nameInput.focus(), 50);
+}
+
+function updateHeaderAvatar(){
+  const wrap = document.getElementById('headerAvatar');
+  const av = document.getElementById('headerAvatarSvg');
+  const nm = document.getElementById('headerAvatarName');
+  const tagline = document.getElementById('titleTagline');
+  if(!userProfile){
+    wrap.style.display = 'none';
+    if(tagline) tagline.style.display = '';
+    return;
+  }
+  av.innerHTML = AVATARS[userProfile.avatarId].svg;
+  nm.textContent = userProfile.name;
+  wrap.style.display = 'flex';
+  // Hide the static "each number, a friend!" tagline once we have a profile
+  if(tagline) tagline.style.display = 'none';
+}
+
+// Wire up clicking the header avatar to re-open the picker
+document.getElementById('headerAvatar').addEventListener('click', () => {
+  showProfilePicker(false);
+});
+
+function personalizeIntro(){
+  const intro = document.getElementById('intro');
+  const h1 = intro.querySelector('h1');
+  const p = intro.querySelector('p');
+  if(userProfile){
+    h1.innerHTML = `Hi <span>${escapeHtml(userProfile.name)}</span>!`;
+    if(p) p.innerHTML = `Let's play with Numberlings together. Drop a One into the world. Stick Ones together to grow them up — Two, Three, Four, all the way up!`;
+  }
+}
+
+function escapeHtml(s){
+  return s.replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+/* Random personalized message helpers — used by the rest of the game */
+function userName(){
+  return userProfile ? userProfile.name : 'friend';
+}
+function pickPhrase(arr){
+  return arr[Math.floor(Math.random() * arr.length)];
+}
 
 /* ---------- World ---------- */
 const stage = document.getElementById('stage');
@@ -844,7 +1263,7 @@ function enterSwordMode(){
   if(typeof closeMenu === 'function') closeMenu();
   // exit BH mode if active
   if(typeof blackHoleMode !== 'undefined' && blackHoleMode) exitBlackHoleMode();
-  flashToast("⚔️ sword mode!");
+  flashToast(pickPhrase([`⚔️ sword mode, ${userName()}!`, "⚔️ swipe to slice!", "⚔️ ready, set, slice!"]));
   // sword overlay receives pointer events on stage area only
   sliceSvg.parentElement.style.pointerEvents = 'auto';
 }
@@ -1123,7 +1542,7 @@ function sliceShape(shape, segments){
   const midX = (midSeg.x1 + midSeg.x2)/2 - stageRect.left;
   const midY = (midSeg.y1 + midSeg.y2)/2 - stageRect.top;
   burst(midX, midY, "#ffd166");
-  flashToast(allComponents.length === 2 ? "sliced!" : `${allComponents.length} pieces!`);
+  flashToast(allComponents.length === 2 ? pickPhrase([`sliced!`, `nice cut, ${userName()}!`, `chop chop!`]) : `${allComponents.length} pieces!`);
   updateStats();
 }
 
@@ -1274,7 +1693,7 @@ function dropRandomFruit(){
 
   el.addEventListener('pointerdown', (e) => onFruitPointerDown(e, fruit));
   fruits.push(fruit);
-  flashToast(`${type.name} ×${type.mult}!`);
+  flashToast(pickPhrase([`${type.name} ×${type.mult}!`, `a ${type.name} for you, ${userName()}!`, `yum! ${type.name}!`]));
 }
 
 function applyFruitTransform(fruit){
@@ -1401,7 +1820,14 @@ function feedFruitToShape(fruit, shape){
     setTimeout(() => shape.el.classList.remove('munch'), 600);
     // transform shape to new size
     transformShapeToN(shape, newN, fruit.type);
-    flashToast(`${oldN} × ${fruit.type.mult} = ${newN}!`);
+    const mathPhrase = `${oldN} × ${fruit.type.mult} = ${newN}!`;
+    const phrases = [
+      mathPhrase,
+      `${mathPhrase} good math, ${userName()}!`,
+      `yummy! ${mathPhrase}`,
+      `${userName()}, you got a ${newN}!`
+    ];
+    flashToast(pickPhrase(phrases));
   }, 350);
 }
 
@@ -1487,7 +1913,7 @@ function enterBlackHoleMode(){
   if(swordMode) exitSwordMode();
   // Close any menu
   if(typeof closeMenu === 'function') closeMenu();
-  flashToast("🌀 tap anywhere to place!");
+  flashToast(pickPhrase([`🌀 tap to place, ${userName()}!`, "🌀 tap anywhere!", "🌀 pick a spot!"]));
 }
 
 function exitBlackHoleMode(){
@@ -1548,10 +1974,12 @@ function placeBlackHole(x, y){
     // tangent direction (perpendicular to radius, counter-clockwise)
     const tx = -dy / dist;
     const ty = dx / dist;
-    // nudge magnitude — needs to be enough to actually cause orbit, not just slow fall
-    // For a circular orbit at radius r: v = sqrt(G*M/r). Use a fraction of that.
-    const orbitalV = Math.sqrt(BH_MASS / Math.max(dist, BH_EVENT_HORIZON));
-    const nudgeStrength = orbitalV * (0.4 + Math.random()*0.5);
+    // Aim for ~75% of circular orbital velocity → nice elliptical orbits
+    // v_circular at this radius (using softened gravity) ≈ sqrt(GM / (r² + soft²) * r)
+    const softening = BH_EVENT_HORIZON * 0.6;
+    const effR2 = dist * dist + softening * softening;
+    const vCirc = Math.sqrt(BH_MASS * dist / effR2);
+    const nudgeStrength = vCirc * (0.65 + Math.random()*0.2);
     s.vx += tx * nudgeStrength;
     s.vy += ty * nudgeStrength;
   }
@@ -1565,8 +1993,10 @@ function placeBlackHole(x, y){
     if(dist < 10) continue;
     const tx = -dy / dist;
     const ty = dx / dist;
-    const orbitalV = Math.sqrt(BH_MASS / Math.max(dist, BH_EVENT_HORIZON));
-    const nudgeStrength = orbitalV * (0.4 + Math.random()*0.5);
+    const softening = BH_EVENT_HORIZON * 0.6;
+    const effR2 = dist * dist + softening * softening;
+    const vCirc = Math.sqrt(BH_MASS * dist / effR2);
+    const nudgeStrength = vCirc * (0.65 + Math.random()*0.2);
     f.vx += tx * nudgeStrength;
     f.vy += ty * nudgeStrength;
   }
@@ -1658,84 +2088,130 @@ function tickBlackHoles(dt, now){
   }
 }
 
-function applyBlackHoleGravity(s, dt){
-  for(const bh of blackHoles){
+/* Orbital integration with sub-stepping for smoother high-acceleration regions.
+   Uses semi-implicit Euler within each substep, which is stable for orbits.
+   The number of substeps grows with how close the body is to the BH. */
+function integrateOrbitalShape(s, dt){
+  const numSubsteps = computeSubsteps(s.x + s._bbox.w/2, s.y + s._bbox.h/2);
+  const sdt = dt / numSubsteps;
+  for(let step = 0; step < numSubsteps; step++){
+    // accumulate acceleration from all BHs
+    let ax = 0, ay = 0;
     const sCx = s.x + s._bbox.w/2;
     const sCy = s.y + s._bbox.h/2;
-    const dx = bh.x - sCx;
-    const dy = bh.y - sCy;
-    const distSq = dx*dx + dy*dy;
-    const dist = Math.sqrt(distSq);
-    if(dist > bh.influence) continue;
-    if(dist < 0.01) continue;
-
-    const massMul = bh._massMul == null ? 1 : bh._massMul;
-    // Gravitational acceleration: a = G*M / r²
-    // We treat bh.mass as G*M combined.
-    // Cap at some min distance to prevent extreme acceleration when very close
-    const effDist = Math.max(dist, bh.eventHorizon);
-    const accel = (bh.mass * massMul) / (effDist * effDist);
-
-    // Direction (unit vector toward black hole)
-    const ux = dx / dist;
-    const uy = dy / dist;
-
-    s.vx += ux * accel * dt;
-    s.vy += uy * accel * dt;
-
-    // Soft event horizon: if too close, push back out tangentially
-    if(dist < bh.eventHorizon){
-      // Push the shape back to the event horizon, preserving tangential velocity
+    for(const bh of blackHoles){
+      const dx = bh.x - sCx;
+      const dy = bh.y - sCy;
+      const dist = Math.hypot(dx, dy);
+      if(dist > bh.influence || dist < 0.01) continue;
+      const massMul = bh._massMul == null ? 1 : bh._massMul;
+      // Smoothed gravity: r² + softening to avoid singularity. Effective mass
+      // softens within the event horizon, falling smoothly to a tangential push.
+      const softening = bh.eventHorizon * 0.6;
+      const effR2 = dist * dist + softening * softening;
+      const accel = (bh.mass * massMul) / effR2;
+      ax += (dx / dist) * accel;
+      ay += (dy / dist) * accel;
+    }
+    // semi-implicit Euler: update v then x
+    s.vx += ax * sdt;
+    s.vy += ay * sdt;
+    // Cap velocity per substep to prevent any runaway
+    const maxV = 60;
+    const v2 = s.vx*s.vx + s.vy*s.vy;
+    if(v2 > maxV*maxV){
+      const scale = maxV / Math.sqrt(v2);
+      s.vx *= scale; s.vy *= scale;
+    }
+    s.x += s.vx * sdt;
+    s.y += s.vy * sdt;
+    // Event horizon: soft elastic boundary
+    for(const bh of blackHoles){
+      const dx = bh.x - (s.x + s._bbox.w/2);
+      const dy = bh.y - (s.y + s._bbox.h/2);
+      const dist = Math.hypot(dx, dy);
+      if(dist >= bh.eventHorizon || dist < 0.01) continue;
+      const ux = dx / dist;
+      const uy = dy / dist;
+      // Push out to event horizon
       const overlap = bh.eventHorizon - dist;
-      // Push along outward normal
       s.x -= ux * overlap;
       s.y -= uy * overlap;
-      // Decompose velocity into radial (toward bh) and tangential (perpendicular)
-      const vRadial = s.vx * ux + s.vy * uy; // scalar projection toward bh
-      // Reflect radial velocity outward (with energy loss to prevent infinite spiral)
-      if(vRadial > 0){ // moving toward bh
-        s.vx -= ux * vRadial * 1.6; // remove radial inward + add radial outward
-        s.vy -= uy * vRadial * 1.6;
+      // Reflect inward radial velocity outward, slightly damped
+      const vRadial = s.vx * ux + s.vy * uy;
+      if(vRadial > 0){
+        s.vx -= ux * vRadial * 1.7;
+        s.vy -= uy * vRadial * 1.7;
       }
-      // Mild tangential damping to prevent runaway slingshots
-      s.vx *= 0.98;
-      s.vy *= 0.98;
+      // Tiny tangential damping for stability
+      s.vx *= 0.995;
+      s.vy *= 0.995;
     }
   }
 }
 
-function applyBlackHoleGravityToFruit(f, dt){
-  for(const bh of blackHoles){
+function integrateOrbitalFruit(f, dt){
+  const numSubsteps = computeSubsteps(f.x + 25, f.y + 25);
+  const sdt = dt / numSubsteps;
+  for(let step = 0; step < numSubsteps; step++){
+    let ax = 0, ay = 0;
     const fCx = f.x + 25;
     const fCy = f.y + 25;
-    const dx = bh.x - fCx;
-    const dy = bh.y - fCy;
-    const distSq = dx*dx + dy*dy;
-    const dist = Math.sqrt(distSq);
-    if(dist > bh.influence) continue;
-    if(dist < 0.01) continue;
-
-    const massMul = bh._massMul == null ? 1 : bh._massMul;
-    const effDist = Math.max(dist, bh.eventHorizon);
-    const accel = (bh.mass * massMul) / (effDist * effDist);
-    const ux = dx / dist;
-    const uy = dy / dist;
-    f.vx += ux * accel * dt;
-    f.vy += uy * accel * dt;
-
-    if(dist < bh.eventHorizon){
+    for(const bh of blackHoles){
+      const dx = bh.x - fCx;
+      const dy = bh.y - fCy;
+      const dist = Math.hypot(dx, dy);
+      if(dist > bh.influence || dist < 0.01) continue;
+      const massMul = bh._massMul == null ? 1 : bh._massMul;
+      const softening = bh.eventHorizon * 0.6;
+      const effR2 = dist * dist + softening * softening;
+      const accel = (bh.mass * massMul) / effR2;
+      ax += (dx / dist) * accel;
+      ay += (dy / dist) * accel;
+    }
+    f.vx += ax * sdt;
+    f.vy += ay * sdt;
+    const maxV = 60;
+    const v2 = f.vx*f.vx + f.vy*f.vy;
+    if(v2 > maxV*maxV){
+      const scale = maxV / Math.sqrt(v2);
+      f.vx *= scale; f.vy *= scale;
+    }
+    f.x += f.vx * sdt;
+    f.y += f.vy * sdt;
+    for(const bh of blackHoles){
+      const dx = bh.x - (f.x + 25);
+      const dy = bh.y - (f.y + 25);
+      const dist = Math.hypot(dx, dy);
+      if(dist >= bh.eventHorizon || dist < 0.01) continue;
+      const ux = dx / dist;
+      const uy = dy / dist;
       const overlap = bh.eventHorizon - dist;
       f.x -= ux * overlap;
       f.y -= uy * overlap;
       const vRadial = f.vx * ux + f.vy * uy;
       if(vRadial > 0){
-        f.vx -= ux * vRadial * 1.6;
-        f.vy -= uy * vRadial * 1.6;
+        f.vx -= ux * vRadial * 1.7;
+        f.vy -= uy * vRadial * 1.7;
       }
-      f.vx *= 0.98;
-      f.vy *= 0.98;
+      f.vx *= 0.995;
+      f.vy *= 0.995;
     }
   }
+}
+
+/* Number of substeps: more when close to a BH (high accel = higher integration error) */
+function computeSubsteps(px, py){
+  let minDist = Infinity;
+  for(const bh of blackHoles){
+    const dx = bh.x - px, dy = bh.y - py;
+    const d = Math.hypot(dx, dy);
+    if(d < minDist) minDist = d;
+  }
+  if(minDist === Infinity) return 1;
+  // Linear ramp: at influence radius use 1 substep, at event horizon use 8
+  const t = Math.max(0, Math.min(1, (BH_INFLUENCE - minDist) / (BH_INFLUENCE - BH_EVENT_HORIZON)));
+  return Math.max(1, Math.round(1 + t * 7));
 }
 
 /* Determine if any block is "captured" by a BH — used to disable gravity for it temporarily */
@@ -2561,7 +3037,16 @@ function performSnap(dragShape, snap){
   const ref = snap.newCells[snap.newCells.length-1];
   const refCenter = cellWorldCenter(host, ref);
   burst(refCenter.x, refCenter.y, palette(host.cells.length).color);
-  flashToast(`${palette(host.cells.length).name}!`);
+  // Mix of plain & personalized celebrations
+  const num = palette(host.cells.length).name;
+  const celebrations = [
+    `${num}!`,
+    `you made a ${num}, ${userName()}!`,
+    `nice ${num}, ${userName()}!`,
+    `${num}! 🎉`,
+    `whoa, a ${num}!`
+  ];
+  flashToast(pickPhrase(celebrations));
   updateStats();
 }
 
@@ -2630,18 +3115,17 @@ function tick(){
     const inField = isInBlackHoleField(sCx, sCy);
 
     if(inField){
-      // ORBITAL MODE: gravity comes from black hole only, no ground rest, low air friction
-      applyBlackHoleGravity(s, dt);
-      s.vx *= Math.pow(0.998, dt); // very mild damping for stable orbits
-      s.vy *= Math.pow(0.998, dt);
-      s.x += s.vx * dt;
-      s.y += s.vy * dt;
-      // Spin toward velocity direction for cool effect
-      s.rotV += (Math.random()-0.5) * 0.05 * dt;
+      // ORBITAL MODE: full integration via combined gravity+position substepped integrator
+      integrateOrbitalShape(s, dt);
+      // mild damping for stability over long orbits
+      s.vx *= Math.pow(0.999, dt);
+      s.vy *= Math.pow(0.999, dt);
+      // gentle tumble for visual flair
+      s.rotV += (Math.random()-0.5) * 0.04 * dt;
       s.rot += s.rotV * dt;
       s.rotV *= Math.pow(0.99, dt);
 
-      // Soft walls - bounce off edges if they fly out wide
+      // Soft walls — bounce off edges if they fly out wide
       const bw = s._bbox.w, bh = s._bbox.h;
       if(s.x < -bw){ s.x = -bw; s.vx = Math.abs(s.vx)*0.5;}
       if(s.x > W){ s.x = W; s.vx = -Math.abs(s.vx)*0.5;}
@@ -2695,11 +3179,9 @@ function tick(){
     const inField = isInBlackHoleField(fCx, fCy);
 
     if(inField){
-      applyBlackHoleGravityToFruit(f, dt);
-      f.vx *= Math.pow(0.998, dt);
-      f.vy *= Math.pow(0.998, dt);
-      f.x += f.vx * dt;
-      f.y += f.vy * dt;
+      integrateOrbitalFruit(f, dt);
+      f.vx *= Math.pow(0.999, dt);
+      f.vy *= Math.pow(0.999, dt);
       f.rot += f.rotV * dt;
     } else {
       f.vy += 0.22 * dt;
@@ -2792,7 +3274,7 @@ function shakeWorld(){
     f.vy += (Math.random()-0.5)*12;
     f.rotV += (Math.random()-0.5)*0.6;
   }
-  flashToast("✨ wheee!");
+  flashToast(pickPhrase(["✨ wheee!", `whoa, ${userName()}!`, "✨ shake it up!"]));
 }
 
 function breakAll(){
@@ -2813,7 +3295,7 @@ function breakAll(){
       spawnAt(piece.x + CELL/2, piece.y + CELL/2);
     }
   }
-  if(toBreak.length) flashToast("✂️ scattered!");
+  if(toBreak.length) flashToast(pickPhrase(["✂️ scattered!", `bye-bye shapes, ${userName()}!`, "✂️ free at last!"]));
   updateStats();
 }
 
@@ -2830,7 +3312,7 @@ function clearWorld(){
   for(const bh of blackHoles) bh.el.remove();
   blackHoles.length = 0;
   updateStats();
-  flashToast("🧹 all clean!");
+  flashToast(pickPhrase(["🧹 all clean!", `fresh start, ${userName()}!`, "🧹 clean slate!"]));
 }
 
 function updateStats(){
@@ -2857,9 +3339,31 @@ document.getElementById('startBtn').addEventListener('click', () => {
     spawnOne();
     setTimeout(()=>spawnOne(), 220);
     setTimeout(()=>spawnOne(), 440);
-    flashToast("stick Ones together to make bigger numbers!");
+    const greetings = [
+      `stick Ones together, ${userName()}!`,
+      `let's build something cool, ${userName()}!`,
+      `have fun, ${userName()}!`,
+      `you got this, ${userName()}!`
+    ];
+    flashToast(pickPhrase(greetings));
   }, 250);
 });
+
+/* Boot: profile-first flow */
+(function boot(){
+  userProfile = loadProfile();
+  if(userProfile){
+    updateHeaderAvatar();
+    personalizeIntro();
+  } else {
+    // Hide intro until profile is set
+    const intro = document.getElementById('intro');
+    intro.style.display = 'none';
+    showProfilePicker(true, () => {
+      intro.style.display = '';
+    });
+  }
+})();
 
 requestAnimationFrame(tick);
 
