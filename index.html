@@ -176,6 +176,114 @@
   }
   .icon-btn:hover{ transform: translateY(-2px); box-shadow: 0 5px 0 var(--ink);}
   .icon-btn:active{ transform: translateY(2px); box-shadow: 0 1px 0 var(--ink);}
+  .icon-btn.active{
+    background: #ffd166;
+    box-shadow: 0 1px 0 var(--ink), 0 0 0 4px rgba(255, 209, 102, 0.4);
+    transform: translateY(2px);
+  }
+
+  /* === Fruits === */
+  .fruit{
+    position:absolute;
+    top:0; left:0;
+    width:50px; height:50px;
+    z-index:12; /* above ground-front (11) so they sit visibly on grass */
+    cursor:grab;
+    will-change: transform;
+    pointer-events: auto;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    user-select: none;
+  }
+  .fruit.dragging{ cursor:grabbing; z-index:32;}
+  .fruit svg{ display:block; width:100%; height:100%; overflow:visible;}
+  .fruit.appear .fruit-mult{ animation: none;}
+  /* The actual transform is set inline by JS; the appear effect is on the inner SVG */
+  .fruit.appear svg{ animation: fruit-pop .45s cubic-bezier(.34,1.56,.64,1) backwards;}
+  @keyframes fruit-pop{
+    0%{ transform: scale(0) rotate(-30deg); opacity:0;}
+    60%{ transform: scale(1.15) rotate(8deg); opacity:1;}
+    100%{ transform: scale(1) rotate(0deg); opacity:1;}
+  }
+  .fruit-mult{
+    position:absolute;
+    top:-10px; right:-8px;
+    background: #ffd166;
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:11px;
+    padding: 1px 5px; line-height:1;
+    color: var(--ink);
+    box-shadow: 0 2px 0 var(--ink);
+    pointer-events:none;
+  }
+
+  /* Highlight a shape when a fruit is being dragged over it */
+  .shape.feeding-target svg{
+    filter: drop-shadow(0 4px 0 #2a2030) drop-shadow(0 0 12px #ffd166) drop-shadow(0 0 12px #ffd166);
+  }
+
+  /* Munching effect: chomp shadow on the shape during feed */
+  .shape.munch{
+    animation: munch .55s cubic-bezier(.4,1.6,.5,1);
+  }
+  @keyframes munch{
+    0%, 100%{ transform: var(--apply-tx, none);}
+    25%{ filter: brightness(1.15) saturate(1.2);}
+    50%{ filter: brightness(1) saturate(1);}
+  }
+
+  /* Growth burst: shape briefly scales up when transformed */
+  .shape.grow{
+    animation: grow-pop .55s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes grow-pop{
+    0%{ }
+    40%{ filter: drop-shadow(0 4px 0 #2a2030) drop-shadow(0 0 18px #ffd166);}
+    100%{ filter: none;}
+  }
+  body.sword-mode{
+    cursor: crosshair;
+  }
+  body.sword-mode .shape{
+    cursor: crosshair;
+  }
+  body.sword-mode .seed-btn,
+  body.sword-mode #intro,
+  body.sword-mode .stat{
+    cursor: auto;
+  }
+
+  /* Slice trail SVG overlay */
+  #slice-overlay{
+    position:fixed; inset:0; z-index:35;
+    pointer-events:none;
+  }
+  #slice-overlay svg{ width:100%; height:100%; display:block; overflow:visible;}
+
+  /* Slice flash effect */
+  @keyframes slice-flash{
+    0%{ stroke-opacity:1; stroke-width:8;}
+    100%{ stroke-opacity:0; stroke-width:24;}
+  }
+  .slice-flash{
+    animation: slice-flash .35s ease-out forwards;
+  }
+
+  /* Sword mode hint banner */
+  #sword-hint{
+    position:fixed; top:74px; left:50%; transform:translateX(-50%);
+    z-index:55;
+    background: #ffd166;
+    border: 3px solid var(--ink); border-radius: 16px;
+    box-shadow: 0 3px 0 var(--ink);
+    padding: 8px 16px;
+    font-family:'Baloo 2', sans-serif; font-weight:700; font-size:13px;
+    pointer-events:none;
+    opacity:0;
+    transition: opacity .25s, transform .25s;
+  }
+  #sword-hint.show{ opacity:1; transform:translateX(-50%) translateY(0);}
   .divider{ width:38px; height:3px; background:var(--ink); border-radius:2px; opacity:.2; margin:2px 0;}
 
   /* === Long-press popup menu === */
@@ -422,6 +530,14 @@
 
 <div id="toast"></div>
 
+<!-- Sword mode hint -->
+<div id="sword-hint">⚔️ Swipe to slice! Tap sword to exit.</div>
+
+<!-- Slice overlay (sword mode trail) -->
+<div id="slice-overlay" aria-hidden="true">
+  <svg id="slice-svg" preserveAspectRatio="none"></svg>
+</div>
+
 <!-- Long-press popup menu (populated by JS) -->
 <div id="seed-menu" aria-hidden="true">
   <div class="menu-card" id="menuCard"></div>
@@ -625,6 +741,16 @@ shakeBtn.className = 'icon-btn'; shakeBtn.textContent = "✨"; shakeBtn.title = 
 shakeBtn.addEventListener('click', shakeWorld);
 dockInner.appendChild(shakeBtn);
 
+const swordBtn = document.createElement('button');
+swordBtn.className = 'icon-btn sword-btn'; swordBtn.textContent = "⚔️"; swordBtn.title = "Sword mode — swipe to slice!";
+swordBtn.addEventListener('click', toggleSwordMode);
+dockInner.appendChild(swordBtn);
+
+const fruitBtn = document.createElement('button');
+fruitBtn.className = 'icon-btn fruit-btn'; fruitBtn.textContent = "🍎"; fruitBtn.title = "Drop a magic fruit!";
+fruitBtn.addEventListener('click', dropRandomFruit);
+dockInner.appendChild(fruitBtn);
+
 const breakBtn = document.createElement('button');
 breakBtn.className = 'icon-btn'; breakBtn.textContent = "✂️"; breakBtn.title = "Break apart";
 breakBtn.addEventListener('click', breakAll);
@@ -634,6 +760,644 @@ const clearBtn = document.createElement('button');
 clearBtn.className = 'icon-btn'; clearBtn.textContent = "🧹"; clearBtn.title = "Clear all";
 clearBtn.addEventListener('click', clearWorld);
 dockInner.appendChild(clearBtn);
+
+/* ===================================================================
+   SWORD MODE — swipe to slice shapes along the swipe line
+=================================================================== */
+let swordMode = false;
+let slicing = false;
+let slicePoints = [];           // array of {x,y} world points along the swipe
+let sliceStartTime = 0;
+const sliceSvg = document.getElementById('slice-svg');
+const swordHint = document.getElementById('sword-hint');
+
+function toggleSwordMode(){
+  if(swordMode) exitSwordMode();
+  else enterSwordMode();
+}
+
+function enterSwordMode(){
+  swordMode = true;
+  document.body.classList.add('sword-mode');
+  swordBtn.classList.add('active');
+  swordHint.classList.add('show');
+  // close any open menu
+  if(typeof closeMenu === 'function') closeMenu();
+  flashToast("⚔️ sword mode!");
+  // sword overlay receives pointer events on stage area only
+  sliceSvg.parentElement.style.pointerEvents = 'auto';
+}
+
+function exitSwordMode(){
+  swordMode = false;
+  document.body.classList.remove('sword-mode');
+  swordBtn.classList.remove('active');
+  swordHint.classList.remove('show');
+  sliceSvg.parentElement.style.pointerEvents = 'none';
+  // clear any active trail
+  slicing = false;
+  slicePoints = [];
+  redrawSliceTrail();
+}
+
+// Escape exits sword mode
+window.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape' && swordMode) exitSwordMode();
+});
+
+// Sword overlay receives pointer events; we listen at window level when sword mode active.
+window.addEventListener('pointerdown', sliceStart, true);
+window.addEventListener('pointermove', sliceMove, true);
+window.addEventListener('pointerup', sliceEnd, true);
+window.addEventListener('pointercancel', sliceEnd, true);
+
+function sliceStart(e){
+  if(!swordMode) return;
+  // Don't start a slice if the click is on a UI element (dock, header, etc.)
+  if(isUIElement(e.target)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  slicing = true;
+  slicePoints = [{ x: e.clientX, y: e.clientY }];
+  sliceStartTime = performance.now();
+  redrawSliceTrail();
+}
+
+function sliceMove(e){
+  if(!swordMode || !slicing) return;
+  e.preventDefault();
+  const last = slicePoints[slicePoints.length-1];
+  const dx = e.clientX - last.x;
+  const dy = e.clientY - last.y;
+  if(dx*dx + dy*dy < 9) return; // skip tiny movements
+  slicePoints.push({ x: e.clientX, y: e.clientY });
+  // limit trail length so SVG doesn't bloat
+  if(slicePoints.length > 80) slicePoints = slicePoints.slice(-80);
+  redrawSliceTrail();
+}
+
+function sliceEnd(e){
+  if(!swordMode || !slicing) return;
+  slicing = false;
+  // commit the slice
+  if(slicePoints.length >= 2){
+    commitSlice(slicePoints);
+    flashSliceTrail(slicePoints);
+  }
+  slicePoints = [];
+  redrawSliceTrail();
+}
+
+function isUIElement(target){
+  if(!target || !target.closest) return false;
+  if(target.closest('#dock')) return true;
+  if(target.closest('header')) return true;
+  if(target.closest('#seed-menu')) return true;
+  if(target.closest('#intro')) return true;
+  return false;
+}
+
+/* ---------- Trail drawing ---------- */
+function redrawSliceTrail(){
+  // Remove existing live trail paths (preserve flash overlays which have class 'slice-flash')
+  Array.from(sliceSvg.querySelectorAll('path:not(.slice-flash), defs')).forEach(el => el.remove());
+  if(slicePoints.length < 2) return;
+  // build a polyline path
+  let d = `M ${slicePoints[0].x} ${slicePoints[0].y}`;
+  for(let i=1;i<slicePoints.length;i++){
+    d += ` L ${slicePoints[i].x} ${slicePoints[i].y}`;
+  }
+  // Use string concat for performance, then insertAdjacentHTML to add paths without nuking flash
+  const html = `
+    <path d="${d}" stroke="rgba(255, 209, 102, 0.35)" stroke-width="22" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="${d}" stroke="#ffd166" stroke-width="10" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="${d}" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  `;
+  sliceSvg.insertAdjacentHTML('afterbegin', html);
+}
+
+function flashSliceTrail(pts){
+  // burn the slice trail briefly with an animated dissolve
+  let d = `M ${pts[0].x} ${pts[0].y}`;
+  for(let i=1;i<pts.length;i++) d += ` L ${pts[i].x} ${pts[i].y}`;
+  const flash = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  flash.setAttribute('d', d);
+  flash.setAttribute('stroke', '#fff');
+  flash.setAttribute('stroke-width', '8');
+  flash.setAttribute('fill', 'none');
+  flash.setAttribute('stroke-linecap', 'round');
+  flash.setAttribute('stroke-linejoin', 'round');
+  flash.classList.add('slice-flash');
+  sliceSvg.appendChild(flash);
+  setTimeout(() => flash.remove(), 400);
+}
+
+/* ---------- Slice commitment: split shapes whose cells lie on opposite sides of the line ---------- */
+function commitSlice(pts){
+  // Build line segments from the slice path
+  const segments = [];
+  for(let i=0;i<pts.length-1;i++){
+    segments.push({ x1: pts[i].x, y1: pts[i].y, x2: pts[i+1].x, y2: pts[i+1].y });
+  }
+
+  // For each shape, check if any segment intersects its bounding box
+  const toSlice = [];
+  for(const s of shapes){
+    // Skip shapes with only 1 cell — no point slicing a single block
+    if(s.cells.length < 2) continue;
+    // bounding box in screen coords
+    const stageRect = stage.getBoundingClientRect();
+    const bx = s.x + stageRect.left;
+    const by = s.y + stageRect.top;
+    const bw = s._bbox.w, bh = s._bbox.h;
+    for(const seg of segments){
+      if(segmentIntersectsRect(seg, bx, by, bw, bh)){
+        toSlice.push(s);
+        break;
+      }
+    }
+  }
+
+  for(const s of toSlice){
+    sliceShape(s, segments);
+  }
+}
+
+function segmentIntersectsRect(seg, rx, ry, rw, rh){
+  // quick check: if either endpoint is inside the rect, intersect
+  if(pointInRect(seg.x1, seg.y1, rx, ry, rw, rh)) return true;
+  if(pointInRect(seg.x2, seg.y2, rx, ry, rw, rh)) return true;
+  // otherwise check segment vs each rect edge
+  const edges = [
+    {x1:rx, y1:ry, x2:rx+rw, y2:ry},      // top
+    {x1:rx+rw, y1:ry, x2:rx+rw, y2:ry+rh}, // right
+    {x1:rx+rw, y1:ry+rh, x2:rx, y2:ry+rh}, // bottom
+    {x1:rx, y1:ry+rh, x2:rx, y2:ry}        // left
+  ];
+  for(const e of edges){
+    if(segmentsIntersect(seg.x1, seg.y1, seg.x2, seg.y2, e.x1, e.y1, e.x2, e.y2)) return true;
+  }
+  return false;
+}
+function pointInRect(x,y, rx,ry,rw,rh){
+  return x >= rx && x <= rx+rw && y >= ry && y <= ry+rh;
+}
+function segmentsIntersect(x1,y1,x2,y2, x3,y3,x4,y4){
+  const d = (x2-x1)*(y4-y3) - (y2-y1)*(x4-x3);
+  if(d === 0) return false;
+  const t = ((x3-x1)*(y4-y3) - (y3-y1)*(x4-x3)) / d;
+  const u = ((x3-x1)*(y2-y1) - (y3-y1)*(x2-x1)) / d;
+  return t >= 0 && t <= 1 && u >= 0 && u <= 1;
+}
+
+/* For each cell, count how many slice segments pass between its center
+   and a "reference" outside point. Even count = same side as reference, odd = opposite side.
+   Then we have two groups; flood-fill connectivity to handle disconnected pieces.
+*/
+function sliceShape(shape, segments){
+  // get screen position of each cell center
+  const stageRect = stage.getBoundingClientRect();
+  const cellInfo = shape.cells.map(c => {
+    const center = cellWorldCenter(shape, c);
+    return {
+      gx: c.gx, gy: c.gy,
+      sx: center.x + stageRect.left, // screen x
+      sy: center.y + stageRect.top,
+      worldX: center.x, worldY: center.y
+    };
+  });
+
+  // Pick a reference point well outside the shape (top-left of screen)
+  const refX = -10000, refY = -10000;
+
+  // Classify each cell: side A = even crossings, side B = odd crossings
+  const sideA = [], sideB = [];
+  for(const ci of cellInfo){
+    let crossings = 0;
+    for(const seg of segments){
+      if(segmentsIntersect(refX, refY, ci.sx, ci.sy, seg.x1, seg.y1, seg.x2, seg.y2)){
+        crossings++;
+      }
+    }
+    if(crossings % 2 === 0) sideA.push(ci);
+    else sideB.push(ci);
+  }
+
+  // If everything ended up on one side, no actual slice happened
+  if(sideA.length === 0 || sideB.length === 0) return;
+
+  // Within each side, find connected components (flood-fill on grid adjacency)
+  const componentsA = findConnectedComponents(sideA);
+  const componentsB = findConnectedComponents(sideB);
+  const allComponents = [...componentsA, ...componentsB];
+  if(allComponents.length < 2) return;
+
+  // Compute the slice direction (used to push pieces apart)
+  // Use overall slice vector from first to last point
+  const firstSeg = segments[0];
+  const lastSeg = segments[segments.length-1];
+  const sliceDx = lastSeg.x2 - firstSeg.x1;
+  const sliceDy = lastSeg.y2 - firstSeg.y1;
+  const sliceLen = Math.hypot(sliceDx, sliceDy) || 1;
+  // perpendicular: rotate 90deg
+  const perpX = -sliceDy / sliceLen;
+  const perpY = sliceDx / sliceLen;
+
+  // Compute current shape's world center for "side of slice"
+  const shapeCx = shape.x + shape._bbox.w/2;
+  const shapeCy = shape.y + shape._bbox.h/2;
+
+  // Remove the original shape
+  shape.el.remove();
+  const idx = shapes.indexOf(shape);
+  if(idx >= 0) shapes.splice(idx, 1);
+
+  // For each component, spawn a new shape with cells repositioned so origin is at component's local 0,0
+  for(const comp of allComponents){
+    // compute centroid of component in world coords
+    let sumX = 0, sumY = 0;
+    for(const ci of comp){ sumX += ci.worldX; sumY += ci.worldY; }
+    const centroidX = sumX / comp.length;
+    const centroidY = sumY / comp.length;
+
+    // determine push direction: dot product of (centroid - shapeCenter) with perp
+    const dx0 = centroidX - shapeCx;
+    const dy0 = centroidY - shapeCy;
+    const dot = dx0*perpX + dy0*perpY;
+    const sign = dot >= 0 ? 1 : -1;
+
+    // Build new shape
+    // Normalize cell coords so the component's min becomes 0
+    const minGx = Math.min(...comp.map(c=>c.gx));
+    const minGy = Math.min(...comp.map(c=>c.gy));
+    const newCells = comp.map(c => ({ gx: c.gx - minGx, gy: c.gy - minGy }));
+
+    // World position of the new shape's top-left
+    // The cell at (originalGx == minGx, originalGy == minGy) was at world center (worldX, worldY)
+    // top-left of that cell = worldX - CELL/2, worldY - CELL/2
+    // and that cell becomes (0,0) in new shape
+    const cornerCell = comp.find(c => c.gx === minGx && c.gy === minGy);
+    let newX, newY;
+    if(cornerCell){
+      newX = cornerCell.worldX - CELL/2;
+      newY = cornerCell.worldY - CELL/2;
+    } else {
+      // fallback: search nearest
+      newX = comp[0].worldX - CELL/2;
+      newY = comp[0].worldY - CELL/2;
+    }
+
+    // Use sliceShape's helper to create the shape
+    const newShape = createShapeFromCells(newCells, newX, newY);
+
+    // Add slice momentum: push perpendicular to the cut, with some randomness
+    const force = 6 + Math.random()*3;
+    newShape.vx = perpX * sign * force + (Math.random()-0.5)*2;
+    newShape.vy = perpY * sign * force + (Math.random()-0.5)*2 - 1;
+    newShape.rotV = (Math.random()-0.5) * 1.2 * sign;
+  }
+
+  // Tiny celebration
+  const midSeg = segments[Math.floor(segments.length/2)];
+  const midX = (midSeg.x1 + midSeg.x2)/2 - stageRect.left;
+  const midY = (midSeg.y1 + midSeg.y2)/2 - stageRect.top;
+  burst(midX, midY, "#ffd166");
+  flashToast(allComponents.length === 2 ? "sliced!" : `${allComponents.length} pieces!`);
+  updateStats();
+}
+
+/* Flood fill connected components on cells (4-connected by gx,gy adjacency) */
+function findConnectedComponents(cellList){
+  const cells = cellList.slice();
+  const map = new Map();
+  for(const c of cells) map.set(c.gx + ',' + c.gy, c);
+  const visited = new Set();
+  const components = [];
+  for(const c of cells){
+    const key = c.gx + ',' + c.gy;
+    if(visited.has(key)) continue;
+    const comp = [];
+    const stack = [c];
+    while(stack.length){
+      const curr = stack.pop();
+      const ck = curr.gx + ',' + curr.gy;
+      if(visited.has(ck)) continue;
+      visited.add(ck);
+      comp.push(curr);
+      const neighbors = [
+        [curr.gx+1, curr.gy], [curr.gx-1, curr.gy],
+        [curr.gx, curr.gy+1], [curr.gx, curr.gy-1]
+      ];
+      for(const [nx,ny] of neighbors){
+        const nk = nx+','+ny;
+        if(map.has(nk) && !visited.has(nk)) stack.push(map.get(nk));
+      }
+    }
+    components.push(comp);
+  }
+  return components;
+}
+
+/* Create a new shape from a list of cells at world position (x,y).
+   Returns the shape object. */
+function createShapeFromCells(cells, x, y){
+  const shape = {
+    id: nextShapeId++,
+    cells: cells,
+    el: null,
+    x, y,
+    vx: 0, vy: 0,
+    rot: 0, rotV: 0,
+    dragging: false,
+    born: performance.now(),
+    _bbox: null
+  };
+  const el = document.createElement('div');
+  el.className = 'shape';
+  shape.el = el;
+  rebuildShapeDOM(shape);
+  stage.appendChild(el);
+  el.addEventListener('pointerdown', (e) => onPointerDown(e, shape));
+  shapes.push(shape);
+  applyShapeTransform(shape);
+  return shape;
+}
+
+/* ===================================================================
+   FRUITS — drop, drag, feed to blocks for multiplication
+=================================================================== */
+const FRUIT_TYPES = [
+  {
+    name: "apple", mult: 2, color: "#ec3d3d", dark: "#a82020",
+    svg: `
+      <ellipse cx="25" cy="32" rx="17" ry="16" fill="#ec3d3d" stroke="#2a2030" stroke-width="2.5"/>
+      <path d="M 12 22 Q 18 18 22 24" stroke="#ff8a8a" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.7"/>
+      <path d="M 25 16 L 26 11" stroke="#5a3a14" stroke-width="3" stroke-linecap="round"/>
+      <path d="M 28 14 Q 34 8 38 12 Q 35 16 30 16 Z" fill="#3eb345" stroke="#2a2030" stroke-width="2"/>
+    `
+  },
+  {
+    name: "banana", mult: 3, color: "#fcd722", dark: "#a88800",
+    svg: `
+      <path d="M 8 16 Q 6 30 18 40 Q 30 46 42 38 Q 40 36 36 38 Q 26 42 18 34 Q 12 26 14 18 Q 12 14 8 16 Z"
+            fill="#fcd722" stroke="#2a2030" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M 12 19 Q 14 28 22 36" stroke="#a88800" stroke-width="1.5" fill="none" opacity="0.5"/>
+      <path d="M 8 16 Q 9 13 12 14" stroke="#3a2800" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+    `
+  },
+  {
+    name: "cherry", mult: 4, color: "#c81d4f", dark: "#7a1030",
+    svg: `
+      <path d="M 18 16 Q 22 10 30 12 Q 26 18 22 20" stroke="#3a8a3a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M 30 12 Q 34 8 38 18" stroke="#3a8a3a" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      <path d="M 28 14 Q 30 11 33 12" stroke="#3eb345" stroke-width="2" fill="#3eb345"/>
+      <circle cx="18" cy="33" r="11" fill="#c81d4f" stroke="#2a2030" stroke-width="2.5"/>
+      <circle cx="32" cy="36" r="11" fill="#c81d4f" stroke="#2a2030" stroke-width="2.5"/>
+      <ellipse cx="14" cy="28" rx="3" ry="2" fill="#ff7a9a" opacity="0.7"/>
+      <ellipse cx="28" cy="31" rx="3" ry="2" fill="#ff7a9a" opacity="0.7"/>
+    `
+  },
+  {
+    name: "strawberry", mult: 5, color: "#ff4060", dark: "#8a1030",
+    svg: `
+      <path d="M 25 14 L 18 12 L 14 16 L 12 12 L 8 16 Q 6 18 10 20 Q 14 18 14 22 Q 18 18 22 20 Q 25 16 28 20 Q 32 18 36 22 Q 36 18 40 20 Q 44 18 42 14 L 38 16 L 32 12 L 25 14 Z"
+            fill="#3eb345" stroke="#2a2030" stroke-width="2" stroke-linejoin="round"/>
+      <path d="M 10 22 Q 12 42 25 46 Q 38 42 40 22 Q 32 24 25 22 Q 18 24 10 22 Z"
+            fill="#ff4060" stroke="#2a2030" stroke-width="2.5" stroke-linejoin="round"/>
+      <g fill="#fff8a0" stroke="#2a2030" stroke-width="0.8">
+        <ellipse cx="16" cy="28" rx="1.4" ry="2"/>
+        <ellipse cx="22" cy="32" rx="1.4" ry="2"/>
+        <ellipse cx="28" cy="29" rx="1.4" ry="2"/>
+        <ellipse cx="34" cy="33" rx="1.4" ry="2"/>
+        <ellipse cx="20" cy="38" rx="1.4" ry="2"/>
+        <ellipse cx="30" cy="39" rx="1.4" ry="2"/>
+      </g>
+    `
+  }
+];
+
+const fruits = []; // {el, x, y, vx, vy, rot, rotV, type, dragging, ...}
+let fruitDragMap = new Map();
+let nextFruitId = 1;
+
+function dropRandomFruit(){
+  const type = FRUIT_TYPES[Math.floor(Math.random() * FRUIT_TYPES.length)];
+  const stageRect = stage.getBoundingClientRect();
+  // spawn near the dock similar to blocks
+  const x = stageRect.width - 180 + (Math.random()*60 - 30);
+  const y = Math.max(80, stageRect.height/2 - 80 + (Math.random()*60 - 30));
+
+  const el = document.createElement('div');
+  el.className = 'fruit appear';
+
+  const fruit = {
+    id: nextFruitId++,
+    el, type,
+    x, y,
+    vx: -1.5 + (Math.random()-0.5)*1.5,
+    vy: -2 - Math.random()*1.5,
+    rot: (Math.random()*16 - 8),
+    rotV: (Math.random()-0.5)*0.4,
+    dragging: false,
+    born: performance.now()
+  };
+
+  el.innerHTML = `
+    <svg viewBox="0 0 50 50" style="filter: drop-shadow(0 3px 0 #2a2030);">
+      ${type.svg}
+    </svg>
+    <span class="fruit-mult">×${type.mult}</span>
+  `;
+  applyFruitTransform(fruit);
+  stage.appendChild(el);
+
+  el.addEventListener('pointerdown', (e) => onFruitPointerDown(e, fruit));
+  fruits.push(fruit);
+  flashToast(`${type.name} ×${type.mult}!`);
+}
+
+function applyFruitTransform(fruit){
+  // anchor at top-left so x,y refer to top-left of the 50x50 box
+  fruit.el.style.transform = `translate(${fruit.x}px, ${fruit.y}px) rotate(${fruit.rot}deg)`;
+  fruit.el.style.transformOrigin = '25px 25px';
+}
+
+/* ---------- Fruit drag ---------- */
+function onFruitPointerDown(e, fruit){
+  if(swordMode) return;
+  e.preventDefault();
+  e.stopPropagation();
+
+  fruit.dragging = true;
+  fruit.el.classList.add('dragging');
+  try{ fruit.el.setPointerCapture(e.pointerId);}catch(_){}
+
+  const stageRect = stage.getBoundingClientRect();
+  fruit.dragOffX = (e.clientX - stageRect.left) - fruit.x;
+  fruit.dragOffY = (e.clientY - stageRect.top) - fruit.y;
+  fruit.lastPx = e.clientX; fruit.lastPy = e.clientY;
+  fruit.lastT = performance.now();
+  fruit.vx = 0; fruit.vy = 0;
+  fruit.rot = 0; fruit.rotV = 0;
+
+  fruitDragMap.set(e.pointerId, fruit);
+  applyFruitTransform(fruit);
+
+  const onMove = (ev) => onFruitPointerMove(ev);
+  const onUp = (ev) => onFruitPointerUp(ev, onMove, onUp);
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onUp);
+  fruit._dragHandlers = { onMove, onUp };
+}
+
+function onFruitPointerMove(e){
+  const fruit = fruitDragMap.get(e.pointerId);
+  if(!fruit) return;
+  const stageRect = stage.getBoundingClientRect();
+  fruit.x = e.clientX - stageRect.left - fruit.dragOffX;
+  fruit.y = e.clientY - stageRect.top - fruit.dragOffY;
+
+  const now = performance.now();
+  const dt = Math.max(now - fruit.lastT, 1);
+  fruit.vx = (e.clientX - fruit.lastPx) / dt * 16;
+  fruit.vy = (e.clientY - fruit.lastPy) / dt * 16;
+  fruit.lastPx = e.clientX; fruit.lastPy = e.clientY; fruit.lastT = now;
+
+  applyFruitTransform(fruit);
+
+  // Highlight a shape if hovering over it
+  highlightFeedTarget(fruit);
+}
+
+function onFruitPointerUp(e, onMove, onUp){
+  const fruit = fruitDragMap.get(e.pointerId);
+  window.removeEventListener('pointermove', onMove);
+  window.removeEventListener('pointerup', onUp);
+  window.removeEventListener('pointercancel', onUp);
+  if(!fruit) return;
+
+  fruit.dragging = false;
+  fruit.el.classList.remove('dragging');
+  try{ fruit.el.releasePointerCapture(e.pointerId);}catch(_){}
+  fruitDragMap.delete(e.pointerId);
+
+  const target = findFeedTarget(fruit);
+  clearFeedHighlights();
+  if(target){
+    feedFruitToShape(fruit, target);
+  } else {
+    fruit.vx = clamp(fruit.vx, -18, 18);
+    fruit.vy = clamp(fruit.vy, -18, 18);
+  }
+}
+
+function fruitCenter(fruit){
+  return { x: fruit.x + 25, y: fruit.y + 25 };
+}
+
+function findFeedTarget(fruit){
+  const c = fruitCenter(fruit);
+  // find nearest shape whose bbox contains the fruit center, or overlaps reasonably
+  for(const s of shapes){
+    if(c.x >= s.x && c.x <= s.x + s._bbox.w &&
+       c.y >= s.y && c.y <= s.y + s._bbox.h){
+      return s;
+    }
+  }
+  return null;
+}
+
+function highlightFeedTarget(fruit){
+  clearFeedHighlights();
+  const target = findFeedTarget(fruit);
+  if(target) target.el.classList.add('feeding-target');
+}
+
+function clearFeedHighlights(){
+  for(const s of shapes) s.el.classList.remove('feeding-target');
+}
+
+/* Feed fruit to shape: animate fruit shrinking into shape, then transform shape */
+function feedFruitToShape(fruit, shape){
+  const target = fruitCenter(fruit);
+  const shapeCx = shape.x + shape._bbox.w/2;
+  const shapeCy = shape.y + shape._bbox.h/2;
+
+  const oldN = shape.cells.length;
+  const newN = Math.min(oldN * fruit.type.mult, 30); // cap
+
+  // Animate fruit flying to shape center, shrinking
+  fruit.el.style.transition = 'transform .35s cubic-bezier(.4,1.6,.5,1), opacity .3s ease';
+  fruit.el.style.transform = `translate(${shapeCx - 25}px, ${shapeCy - 25}px) scale(0.2) rotate(360deg)`;
+  fruit.el.style.opacity = '0';
+  setTimeout(() => {
+    fruit.el.remove();
+    const idx = fruits.indexOf(fruit);
+    if(idx >= 0) fruits.splice(idx, 1);
+    // chomp
+    shape.el.classList.add('munch');
+    setTimeout(() => shape.el.classList.remove('munch'), 600);
+    // transform shape to new size
+    transformShapeToN(shape, newN, fruit.type);
+    flashToast(`${oldN} × ${fruit.type.mult} = ${newN}!`);
+  }, 350);
+}
+
+/* Replace a shape's cell layout with the canonical layout for newN */
+function transformShapeToN(shape, newN, fruitType){
+  // Get layout
+  let layout;
+  if(SHAPE_LAYOUTS[newN]) layout = SHAPE_LAYOUTS[newN];
+  else {
+    // build a canonical layout for >10: try a roughly-square block, else vertical
+    layout = canonicalLayoutForN(newN);
+  }
+
+  // Anchor: keep shape's bottom center at the same world position if grounded.
+  // Otherwise, keep its center at the same position.
+  const oldCx = shape.x + shape._bbox.w/2;
+  const oldBottom = shape.y + shape._bbox.h;
+
+  const cells = layout.map(([gx,gy]) => ({ gx, gy }));
+  shape.cells = cells;
+  rebuildShapeDOM(shape);
+
+  // Reposition: keep bottom-center anchored
+  const newW = shape._bbox.w;
+  const newH = shape._bbox.h;
+  shape.x = oldCx - newW/2;
+  shape.y = oldBottom - newH;
+  // Keep within bounds
+  const stageRect = stage.getBoundingClientRect();
+  const RIGHT_MARGIN = 86;
+  if(shape.x < 0) shape.x = 0;
+  if(shape.x + newW > stageRect.width - RIGHT_MARGIN) shape.x = stageRect.width - RIGHT_MARGIN - newW;
+  if(shape.y < 64) shape.y = 64;
+  if(shape.y + newH > stageRect.height - 60) shape.y = stageRect.height - 60 - newH;
+
+  shape.rot = 0; shape.rotV = 0;
+  shape.vy = -3; // little hop
+  shape.vx = 0;
+  applyShapeTransform(shape);
+
+  // Visual flourish
+  shape.el.classList.add('grow');
+  setTimeout(() => shape.el.classList.remove('grow'), 600);
+  // fruit-color burst
+  burst(oldCx, shape.y + newH/2, fruitType.color);
+  updateStats();
+}
+
+function canonicalLayoutForN(n){
+  // Try to find a layout close to square for n cells
+  const cols = Math.ceil(Math.sqrt(n));
+  const layout = [];
+  for(let i=0;i<n;i++){
+    layout.push([i % cols, Math.floor(i/cols)]);
+  }
+  return layout;
+}
 
 /* ===================================================================
    SHAPE RENDERING
@@ -1296,6 +2060,8 @@ function applyShapeTransform(shape){
    POINTER / DRAG
 =================================================================== */
 function onPointerDown(e, shape){
+  // In sword mode, ignore shape clicks — let the sword slice handler take over
+  if(swordMode) return;
   e.preventDefault();
   e.stopPropagation();
 
@@ -1543,6 +2309,37 @@ function tick(){
     }
   }
 
+  // ----- Fruit physics -----
+  const FRUIT_BOTTOM = H - 50; // fruits rest a touch lower than blocks (smaller objects)
+  const FRUIT_RIGHT_MARGIN = 86;
+  for(const f of fruits){
+    if(f.dragging) continue;
+    f.vy += 0.22 * dt;
+    f.vx *= Math.pow(0.985, dt);
+    f.vy *= Math.pow(0.985, dt);
+    f.x += f.vx * dt;
+    f.y += f.vy * dt;
+    f.rot += f.rotV * dt;
+    f.rotV *= Math.pow(0.96, dt);
+
+    if(f.x < 0){ f.x = 0; f.vx = Math.abs(f.vx)*0.6;}
+    if(f.x + 50 > W - FRUIT_RIGHT_MARGIN){ f.x = W - FRUIT_RIGHT_MARGIN - 50; f.vx = -Math.abs(f.vx)*0.6;}
+    if(f.y < TOP){ f.y = TOP; f.vy = Math.abs(f.vy)*0.4;}
+    if(f.y + 50 > FRUIT_BOTTOM){
+      f.y = FRUIT_BOTTOM - 50;
+      if(Math.abs(f.vy) > 1.2){ f.vy = -Math.abs(f.vy)*0.4; }
+      else { f.vy = 0; }
+      f.vx *= 0.86;
+      f.rotV *= 0.6;
+      if(Math.abs(f.rot) > 0.2){
+        f.rot += (0 - f.rot) * 0.08 * dt;
+      } else {
+        f.rot = 0;
+      }
+    }
+    applyFruitTransform(f);
+  }
+
   requestAnimationFrame(tick);
 }
 
@@ -1601,6 +2398,11 @@ function shakeWorld(){
     s.vy += (Math.random()-0.5)*16;
     s.rotV += (Math.random()-0.5)*0.6;
   }
+  for(const f of fruits){
+    f.vx += (Math.random()-0.5)*12;
+    f.vy += (Math.random()-0.5)*12;
+    f.rotV += (Math.random()-0.5)*0.6;
+  }
   flashToast("✨ wheee!");
 }
 
@@ -1634,6 +2436,8 @@ function spawnAt(x, y){
 function clearWorld(){
   for(const s of shapes) s.el.remove();
   shapes.length = 0;
+  for(const f of fruits) f.el.remove();
+  fruits.length = 0;
   updateStats();
   flashToast("🧹 all clean!");
 }
