@@ -3540,9 +3540,28 @@ function applyShapeTransform(shape){
 /* ===================================================================
    POINTER / DRAG
 =================================================================== */
+// Double-click tracking: pointerdown timestamps per shape
+const DOUBLE_CLICK_MS = 350;
+const lastClickByShape = new WeakMap(); // shape -> {t, x, y}
+
 function onPointerDown(e, shape){
   // In sword mode, ignore shape clicks — let the sword slice handler take over
   if(swordMode) return;
+
+  // Double-click / double-tap detection: pop a single cell off into its own One
+  const now = performance.now();
+  const last = lastClickByShape.get(shape);
+  const isDouble = last && (now - last.t < DOUBLE_CLICK_MS) &&
+                   (Math.abs(last.x - e.clientX) < 24) && (Math.abs(last.y - e.clientY) < 24);
+  if(isDouble && shape.cells.length > 1){
+    e.preventDefault();
+    e.stopPropagation();
+    lastClickByShape.delete(shape);
+    popCellAt(shape, e.clientX, e.clientY);
+    return;
+  }
+  lastClickByShape.set(shape, { t: now, x: e.clientX, y: e.clientY });
+
   e.preventDefault();
   e.stopPropagation();
 
@@ -3568,6 +3587,109 @@ function onPointerDown(e, shape){
   shape._dragHandlers = { onMove, onUp };
 
   applyShapeTransform(shape);
+}
+
+/* Find which cell in a shape was clicked (in screen coords), pop it off as its own One.
+   If removing that cell disconnects the rest, also split into multiple shapes. */
+function popCellAt(shape, screenX, screenY){
+  // Convert screen coords to world coords (relative to stage)
+  const stageRect = stage.getBoundingClientRect();
+  const worldX = screenX - stageRect.left;
+  const worldY = screenY - stageRect.top;
+
+  // Find the cell whose world rect contains (worldX, worldY)
+  let target = null;
+  let bestDist = Infinity;
+  for(const c of shape.cells){
+    const center = cellWorldCenter(shape, c);
+    const dx = worldX - center.x;
+    const dy = worldY - center.y;
+    const d = Math.hypot(dx, dy);
+    if(d < bestDist){
+      bestDist = d;
+      target = c;
+    }
+  }
+  if(!target) return;
+
+  // Capture popped cell's world position before mutation
+  const poppedCenter = cellWorldCenter(shape, target);
+
+  // Remove the target cell from the shape
+  const remaining = shape.cells.filter(c => !(c.gx === target.gx && c.gy === target.gy));
+
+  // Cancel any in-progress drag handlers on this shape
+  if(shape._dragHandlers){
+    window.removeEventListener('pointermove', shape._dragHandlers.onMove);
+    window.removeEventListener('pointerup', shape._dragHandlers.onUp);
+    window.removeEventListener('pointercancel', shape._dragHandlers.onUp);
+    shape._dragHandlers = null;
+  }
+  shape.dragging = false;
+  shape.el.classList.remove('dragging');
+
+  // If nothing remains (which shouldn't happen since we guarded cells.length > 1, but safety)
+  if(remaining.length === 0){
+    shape.el.remove();
+    const idx = shapes.indexOf(shape);
+    if(idx >= 0) shapes.splice(idx, 1);
+  } else {
+    // Find connected components of the remaining cells. If multiple, split into separate shapes.
+    const components = findConnectedComponents(remaining);
+    if(components.length === 1){
+      // Just update the existing shape
+      shape.cells = remaining.map(c => ({ gx: c.gx, gy: c.gy }));
+      // Anchor: keep the shape's bottom-center stable
+      const oldCx = shape.x + shape._bbox.w/2;
+      const oldBottom = shape.y + shape._bbox.h;
+      rebuildShapeDOM(shape);
+      shape.x = oldCx - shape._bbox.w/2;
+      shape.y = oldBottom - shape._bbox.h;
+      shape.vx = 0; shape.vy = 0; shape.rot = 0; shape.rotV = 0;
+      applyShapeTransform(shape);
+    } else {
+      // Multiple disconnected pieces — capture each cell's world position, then rebuild as separate shapes
+      const cellWorldPositions = new Map();
+      for(const c of remaining){
+        const cw = cellWorldCenter(shape, c);
+        cellWorldPositions.set(c.gx + ',' + c.gy, cw);
+      }
+      // Remove the original shape
+      shape.el.remove();
+      const idx = shapes.indexOf(shape);
+      if(idx >= 0) shapes.splice(idx, 1);
+      // Spawn each component as its own shape
+      for(const comp of components){
+        const minGx = Math.min(...comp.map(c => c.gx));
+        const minGy = Math.min(...comp.map(c => c.gy));
+        const newCells = comp.map(c => ({ gx: c.gx - minGx, gy: c.gy - minGy }));
+        // Use any cell in the component as a reference: figure out where the new
+        // shape's top-left should be so this cell ends up at its current world position.
+        const refCell = comp[0];
+        const refWorld = cellWorldPositions.get(refCell.gx + ',' + refCell.gy);
+        // refCell's local position within new shape: (refCell.gx - minGx)*CELL, (refCell.gy - minGy)*CELL
+        // refCell's world top-left = newShape.x + (refCell.gx - minGx)*CELL
+        // We want this to equal refWorld.x - CELL/2
+        const newX = refWorld.x - CELL/2 - (refCell.gx - minGx) * CELL;
+        const newY = refWorld.y - CELL/2 - (refCell.gy - minGy) * CELL;
+        createShapeFromCells(newCells, newX, newY);
+      }
+    }
+  }
+
+  // Spawn the popped cell as its own One at the popped position, with a little upward kick
+  const popX = poppedCenter.x - CELL/2;
+  const popY = poppedCenter.y - CELL/2;
+  const popped = createShapeFromCells([{ gx: 0, gy: 0 }], popX, popY);
+  popped.vx = (Math.random() - 0.5) * 4;
+  popped.vy = -6 - Math.random() * 3; // hop up
+  popped.rotV = (Math.random() - 0.5) * 0.6;
+  popped.el.classList.add('appear'); // little pop animation
+
+  // Celebration burst at the popped cell location
+  burst(poppedCenter.x, poppedCenter.y, "#fff");
+  flashToast(pickPhrase(["pop!", `popped, ${userName()}!`, "freed a One!"]));
+  updateStats();
 }
 
 function onPointerMove(e){
