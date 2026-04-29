@@ -243,6 +243,150 @@
     100%{ filter: none;}
   }
 
+  /* === Fountain === */
+  body.fountain-mode{ cursor: crosshair;}
+  body.fountain-mode .shape, body.fountain-mode .fruit{ cursor: crosshair;}
+  body.fountain-mode .seed-btn,
+  body.fountain-mode #intro,
+  body.fountain-mode .stat{ cursor: auto;}
+
+  .fountain{
+    position:absolute;
+    z-index: 8; /* below shapes */
+    pointer-events: none;
+    will-change: transform;
+    width: 0; height: 0;
+  }
+  .fountain svg{ display:block; overflow:visible; position:absolute; left:-40px; top:-50px;}
+  @keyframes fountain-bob{
+    0%,100%{ transform: translateY(0);}
+    50%{ transform: translateY(-2px);}
+  }
+  .fountain .bob{ animation: fountain-bob 1.4s ease-in-out infinite; transform-origin: center;}
+
+  /* Hint banner */
+  #fountain-hint{
+    position:fixed; top:74px; left:50%; transform:translateX(-50%);
+    z-index:55;
+    background: #42a8d6;
+    color: #fff;
+    border: 3px solid var(--ink); border-radius: 16px;
+    box-shadow: 0 3px 0 var(--ink);
+    padding: 8px 16px;
+    font-family:'Baloo 2', sans-serif; font-weight:700; font-size:13px;
+    pointer-events:none;
+    opacity:0;
+    transition: opacity .25s, transform .25s;
+  }
+  #fountain-hint.show{ opacity:1; transform:translateX(-50%) translateY(0);}
+
+  /* === Mission Mode === */
+  #mission-card{
+    position:fixed; top:120px; left:14px; z-index:45;
+    background: var(--paper);
+    border: 3px solid var(--ink); border-radius: 18px;
+    box-shadow: 0 4px 0 var(--ink);
+    padding: 10px 12px 12px;
+    display:none;
+    flex-direction:column;
+    align-items:stretch;
+    gap:6px;
+    width: 168px;
+    pointer-events:auto;
+    transition: transform .25s ease, opacity .25s ease;
+  }
+  #mission-card.show{ display:flex;}
+  #mission-card.complete{
+    animation: mission-celebrate .8s ease;
+  }
+  @keyframes mission-celebrate{
+    0%,100%{ transform: scale(1);}
+    25%{ transform: scale(1.08) rotate(-2deg);}
+    50%{ transform: scale(1.12) rotate(2deg);}
+    75%{ transform: scale(1.06) rotate(-1deg);}
+  }
+  #mission-card .level-row{
+    display:flex; justify-content:space-between; align-items:center;
+    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:14px;
+  }
+  #mission-card .level-row .level{ color:#ff6b9d;}
+  #mission-card .level-row .pts{
+    font-size:11px; color:var(--ink); opacity:0.7; font-weight:700;
+    background: #ffd166; border:2px solid var(--ink); border-radius:8px;
+    padding: 1px 6px;
+  }
+  #mission-card .target-label{
+    font-family:'Baloo 2', sans-serif; font-weight:700; font-size:11px;
+    letter-spacing:0.05em; text-transform:uppercase;
+    color:var(--ink); opacity:0.7;
+  }
+  #mission-card .target-preview{
+    background: #f4ead5;
+    border:2px solid var(--ink); border-radius:10px;
+    width:100%; height: 96px;
+    display:flex; align-items:center; justify-content:center;
+    overflow:hidden;
+    padding: 4px;
+  }
+  #mission-card .target-preview svg{ display:block; max-width:100%; max-height:100%;}
+  #mission-card .info{
+    font-family:'Fredoka', sans-serif; font-weight:500; font-size:11.5px;
+    color:var(--ink); opacity:0.85;
+    line-height: 1.35;
+    text-align:center;
+  }
+  #mission-card .restart-btn{
+    margin-top: 4px;
+    font-family:'Baloo 2', sans-serif; font-weight:700; font-size:11px;
+    background: var(--paper);
+    border:2px solid var(--ink); border-radius:9px;
+    padding: 5px 8px;
+    cursor:pointer;
+    box-shadow: 0 2px 0 var(--ink);
+    color: var(--ink);
+  }
+  #mission-card .restart-btn:hover{ background: #ffd6a5;}
+  #mission-card .restart-btn:active{ transform: translateY(1px); box-shadow: 0 1px 0 var(--ink);}
+
+  /* Big level-up overlay */
+  #level-up{
+    position:fixed; top:50%; left:50%;
+    transform: translate(-50%, -50%) scale(0);
+    z-index: 75;
+    pointer-events:none;
+    background: #ffd166;
+    border: 4px solid var(--ink); border-radius: 28px;
+    box-shadow: 0 8px 0 var(--ink);
+    padding: 24px 36px;
+    text-align: center;
+    opacity:0;
+  }
+  #level-up.show{
+    animation: level-up-pop 1.6s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes level-up-pop{
+    0%{ transform: translate(-50%, -50%) scale(0) rotate(-12deg); opacity:0;}
+    25%{ transform: translate(-50%, -50%) scale(1.15) rotate(3deg); opacity:1;}
+    75%{ transform: translate(-50%, -50%) scale(1) rotate(0deg); opacity:1;}
+    100%{ transform: translate(-50%, -50%) scale(0.5) rotate(0deg); opacity:0;}
+  }
+  #level-up h2{
+    margin:0 0 4px;
+    font-family:'Baloo 2', sans-serif; font-weight:800;
+    font-size: clamp(28px, 6vw, 42px); letter-spacing:-0.02em;
+    color: var(--ink);
+  }
+  #level-up p{
+    margin:0;
+    font-family:'Fredoka', sans-serif; font-weight:600; font-size:16px;
+    color: var(--ink);
+  }
+
+  @media (max-width:520px){
+    #mission-card{ width: 144px; top: 110px; padding: 8px 10px 10px;}
+    #mission-card .target-preview{ height: 80px;}
+  }
+
   /* === Black Hole === */
   body.blackhole-mode{
     cursor: crosshair;
@@ -719,6 +863,27 @@
 
 <!-- Black hole mode hint -->
 <div id="bh-hint">🌀 Tap to place a black hole!</div>
+
+<!-- Fountain mode hint -->
+<div id="fountain-hint">⛲ Tap to place a fountain!</div>
+
+<!-- Mission card (shown in mission mode) -->
+<div id="mission-card" aria-hidden="true">
+  <div class="level-row">
+    <span class="level" id="missionLevel">Level 1</span>
+    <span class="pts" id="missionPts">0 pts</span>
+  </div>
+  <div class="target-label">Build this:</div>
+  <div class="target-preview" id="missionPreview"></div>
+  <div class="info" id="missionInfo">Connect Ones to match the shape!</div>
+  <button class="restart-btn" id="missionRestartBtn">↺ Start Over</button>
+</div>
+
+<!-- Big level-up overlay -->
+<div id="level-up" aria-hidden="true">
+  <h2 id="levelUpTitle">Level Up!</h2>
+  <p id="levelUpDesc">+10 points</p>
+</div>
 
 <!-- Slice overlay (sword mode trail) -->
 <div id="slice-overlay" aria-hidden="true">
@@ -1229,6 +1394,11 @@ blackHoleBtn.className = 'icon-btn blackhole-btn'; blackHoleBtn.textContent = "�
 blackHoleBtn.addEventListener('click', toggleBlackHoleMode);
 dockInner.appendChild(blackHoleBtn);
 
+const fountainBtn = document.createElement('button');
+fountainBtn.className = 'icon-btn fountain-btn'; fountainBtn.textContent = "⛲"; fountainBtn.title = "Fountain — tap to place!";
+fountainBtn.addEventListener('click', toggleFountainMode);
+dockInner.appendChild(fountainBtn);
+
 const breakBtn = document.createElement('button');
 breakBtn.className = 'icon-btn'; breakBtn.textContent = "✂️"; breakBtn.title = "Break apart";
 breakBtn.addEventListener('click', breakAll);
@@ -1238,6 +1408,14 @@ const clearBtn = document.createElement('button');
 clearBtn.className = 'icon-btn'; clearBtn.textContent = "🧹"; clearBtn.title = "Clear all";
 clearBtn.addEventListener('click', clearWorld);
 dockInner.appendChild(clearBtn);
+
+// Divider before mission button
+const div2 = document.createElement('div'); div2.className='divider'; dockInner.appendChild(div2);
+
+const missionBtn = document.createElement('button');
+missionBtn.className = 'icon-btn mission-btn'; missionBtn.textContent = "🎯"; missionBtn.title = "Mission mode!";
+missionBtn.addEventListener('click', toggleMissionMode);
+dockInner.appendChild(missionBtn);
 
 /* ===================================================================
    SWORD MODE — swipe to slice shapes along the swipe line
@@ -1261,8 +1439,9 @@ function enterSwordMode(){
   swordHint.classList.add('show');
   // close any open menu
   if(typeof closeMenu === 'function') closeMenu();
-  // exit BH mode if active
+  // exit other modes if active
   if(typeof blackHoleMode !== 'undefined' && blackHoleMode) exitBlackHoleMode();
+  if(typeof fountainMode !== 'undefined' && fountainMode) exitFountainMode();
   flashToast(pickPhrase([`⚔️ sword mode, ${userName()}!`, "⚔️ swipe to slice!", "⚔️ ready, set, slice!"]));
   // sword overlay receives pointer events on stage area only
   sliceSvg.parentElement.style.pointerEvents = 'auto';
@@ -1909,8 +2088,9 @@ function enterBlackHoleMode(){
   document.body.classList.add('blackhole-mode');
   blackHoleBtn.classList.add('active');
   bhHint.classList.add('show');
-  // Cancel sword mode if active
+  // Cancel other modes
   if(swordMode) exitSwordMode();
+  if(typeof fountainMode !== 'undefined' && fountainMode) exitFountainMode();
   // Close any menu
   if(typeof closeMenu === 'function') closeMenu();
   flashToast(pickPhrase([`🌀 tap to place, ${userName()}!`, "🌀 tap anywhere!", "🌀 pick a spot!"]));
@@ -2223,6 +2403,482 @@ function isInBlackHoleField(x, y){
   }
   return false;
 }
+
+/* ===================================================================
+   FOUNTAIN — places a fountain that shoots out 50 Ones, then disappears
+=================================================================== */
+let fountainMode = false;
+const fountains = []; // {x,y, el, born, blocksLeft, lastSpawnT, fadingOut}
+const fountainHint = document.getElementById('fountain-hint');
+
+const FOUNTAIN_TOTAL_BLOCKS = 50;
+const FOUNTAIN_INTERVAL_MS = 220; // time between block emissions
+
+function toggleFountainMode(){
+  if(fountainMode) exitFountainMode();
+  else enterFountainMode();
+}
+function enterFountainMode(){
+  fountainMode = true;
+  document.body.classList.add('fountain-mode');
+  fountainBtn.classList.add('active');
+  fountainHint.classList.add('show');
+  // Cancel other modes
+  if(swordMode) exitSwordMode();
+  if(blackHoleMode) exitBlackHoleMode();
+  if(typeof closeMenu === 'function') closeMenu();
+  flashToast(pickPhrase([`⛲ tap to place, ${userName()}!`, "⛲ pick a spot!", "⛲ where should it go?"]));
+}
+function exitFountainMode(){
+  fountainMode = false;
+  document.body.classList.remove('fountain-mode');
+  fountainBtn.classList.remove('active');
+  fountainHint.classList.remove('show');
+}
+
+// Tap to place
+window.addEventListener('pointerdown', (e) => {
+  if(!fountainMode) return;
+  if(isUIElement(e.target)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const stageRect = stage.getBoundingClientRect();
+  placeFountain(e.clientX - stageRect.left, e.clientY - stageRect.top);
+  exitFountainMode();
+}, true);
+
+window.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape' && fountainMode) exitFountainMode();
+});
+
+function placeFountain(x, y){
+  // Snap fountain to ground level for natural look
+  const stageRect = stage.getBoundingClientRect();
+  const groundY = stageRect.height - 60; // matches BOTTOM in physics
+  // Allow placement higher if user taps high (so fountain can be on a "platform" feel)
+  // But clamp the bottom so it doesn't go below ground
+  const fountainY = Math.min(y, groundY);
+
+  const el = document.createElement('div');
+  el.className = 'fountain';
+  el.innerHTML = fountainSVG();
+  el.style.transform = `translate(${x}px, ${fountainY}px)`;
+  stage.appendChild(el);
+
+  const f = {
+    x, y: fountainY, el,
+    born: performance.now(),
+    blocksLeft: FOUNTAIN_TOTAL_BLOCKS,
+    lastSpawnT: performance.now() - FOUNTAIN_INTERVAL_MS, // emit first one immediately
+    fadingOut: false
+  };
+  fountains.push(f);
+
+  // birth animation
+  const svgEl = el.querySelector('svg');
+  if(svgEl){
+    svgEl.style.animation = 'fountain-pop .5s cubic-bezier(.34,1.56,.64,1) backwards';
+  }
+  ensureFountainKeyframes();
+}
+
+function ensureFountainKeyframes(){
+  if(document.getElementById('fountain-style')) return;
+  const style = document.createElement('style');
+  style.id = 'fountain-style';
+  style.textContent = `
+    @keyframes fountain-pop{
+      0%{ opacity:0; transform: scale(0) translateY(20px);}
+      60%{ opacity:1; transform: scale(1.15) translateY(-2px);}
+      100%{ opacity:1; transform: scale(1) translateY(0);}
+    }
+    @keyframes fountain-fade{
+      0%{ opacity:1;}
+      100%{ opacity:0; transform: scale(0.6) translateY(10px);}
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function fountainSVG(){
+  // Base: a stone bowl + spout. Bob animates the bowl gently. The "water" stream
+  // is decorative; actual block emission happens via JS.
+  return `
+    <svg viewBox="-40 -50 80 50" width="80" height="50" style="overflow:visible; display:block;">
+      <g class="bob">
+        <!-- spout column going up -->
+        <rect x="-4" y="-30" width="8" height="20" rx="2" fill="#bdb2ff" stroke="#2a2030" stroke-width="2"/>
+        <!-- bowl -->
+        <ellipse cx="0" cy="0" rx="32" ry="6" fill="#a0c4ff" stroke="#2a2030" stroke-width="2.5"/>
+        <ellipse cx="0" cy="-2" rx="28" ry="4" fill="#bde0fe"/>
+        <!-- top rim -->
+        <ellipse cx="0" cy="-10" rx="14" ry="3" fill="#a0c4ff" stroke="#2a2030" stroke-width="2"/>
+        <ellipse cx="0" cy="-11" rx="10" ry="2" fill="#bde0fe"/>
+        <!-- a tiny "1" hint floating just above the spout -->
+        <text x="0" y="-36" text-anchor="middle" font-family="Baloo 2, sans-serif" font-weight="800" font-size="14" fill="#2a2030" opacity="0.5">1</text>
+        <!-- sparkles -->
+        <circle cx="-18" cy="-4" r="1.5" fill="white" opacity="0.8"/>
+        <circle cx="18" cy="-3" r="1.2" fill="white" opacity="0.8"/>
+        <circle cx="-10" cy="-5" r="1" fill="white" opacity="0.6"/>
+      </g>
+    </svg>
+  `;
+}
+
+function tickFountains(now){
+  for(let i = fountains.length - 1; i >= 0; i--){
+    const f = fountains[i];
+    if(f.blocksLeft <= 0){
+      // Start fadeout if not started
+      if(!f.fadingOut){
+        f.fadingOut = true;
+        f.fadeStart = now;
+        const svgEl = f.el.querySelector('svg');
+        if(svgEl){
+          svgEl.style.animation = 'fountain-fade 0.6s ease forwards';
+        }
+      }
+      if(now - f.fadeStart >= 600){
+        f.el.remove();
+        fountains.splice(i, 1);
+      }
+      continue;
+    }
+    if(now - f.lastSpawnT >= FOUNTAIN_INTERVAL_MS){
+      f.lastSpawnT = now;
+      f.blocksLeft--;
+      emitFountainBlock(f);
+    }
+  }
+}
+
+function emitFountainBlock(f){
+  // Spawn a One at the fountain's spout, with upward + slight horizontal velocity
+  const spoutX = f.x;
+  const spoutY = f.y - 30; // top of spout column
+
+  // Use spawnShape with single cell layout
+  const stageRect = stage.getBoundingClientRect();
+  // Position so the cell's top-left lines up centered on the spout
+  const cellX = spoutX - CELL/2;
+  const cellY = spoutY - CELL;
+
+  // Build directly to control initial velocity
+  const cells = [{ gx: 0, gy: 0 }];
+  const shape = {
+    id: nextShapeId++,
+    cells,
+    el: null,
+    x: cellX, y: cellY,
+    vx: (Math.random()*2 - 1) * 4,      // -4..4 horizontal
+    vy: -10 - Math.random() * 5,         // strong upward
+    rot: (Math.random()*16 - 8),
+    rotV: (Math.random()-0.5) * 0.6,
+    dragging: false,
+    born: performance.now(),
+    _bbox: null
+  };
+  const el = document.createElement('div');
+  el.className = 'shape appear';
+  shape.el = el;
+  rebuildShapeDOM(shape);
+  stage.appendChild(el);
+  el.addEventListener('pointerdown', (e) => onPointerDown(e, shape));
+  shapes.push(shape);
+  applyShapeTransform(shape);
+  updateStats();
+
+  // Tiny burst at spout for water-shoot vibe
+  burstSmall(spoutX, spoutY, "#bde0fe");
+}
+
+// Smaller burst variant for fountain
+function burstSmall(cx, cy, color){
+  for(let i=0;i<5;i++){
+    const p = document.createElement('div');
+    p.style.position='absolute';
+    p.style.left = cx+'px'; p.style.top = cy+'px';
+    p.style.width = '5px'; p.style.height='5px';
+    p.style.background = color;
+    p.style.border = '1.5px solid #2a2030';
+    p.style.borderRadius = '50%';
+    p.style.zIndex = 25;
+    p.style.pointerEvents='none';
+    stage.appendChild(p);
+    const ang = -Math.PI/2 + (Math.random()*1.4 - 0.7); // mostly upward
+    const sp = 30 + Math.random()*40;
+    const dx = Math.cos(ang)*sp;
+    const dy = Math.sin(ang)*sp;
+    p.animate([
+      { transform:`translate(-2.5px,-2.5px) scale(1)`, opacity:1 },
+      { transform:`translate(${dx-2.5}px, ${dy-2.5}px) scale(0.4)`, opacity:0 }
+    ], { duration: 500 + Math.random()*200, easing:'cubic-bezier(.2,.7,.4,1)' });
+    setTimeout(()=>p.remove(), 750);
+  }
+}
+
+/* ===================================================================
+   MISSION MODE — build target shapes for points and progression
+=================================================================== */
+let missionMode = false;
+let currentLevel = 1;
+let currentPoints = 0;
+let currentTarget = null; // {cells: [{gx,gy}], canonical: Set, n}
+let levelCompleted = false;
+
+const missionCard = document.getElementById('mission-card');
+const missionLevelEl = document.getElementById('missionLevel');
+const missionPtsEl = document.getElementById('missionPts');
+const missionPreviewEl = document.getElementById('missionPreview');
+const missionInfoEl = document.getElementById('missionInfo');
+const missionRestartBtn = document.getElementById('missionRestartBtn');
+const levelUpEl = document.getElementById('level-up');
+
+const MISSION_KEY_PREFIX = 'numberlings.mission.v1.';
+
+/* Deterministic PRNG (mulberry32) — same level number always yields same shape */
+function mulberry32(seed){
+  return function(){
+    seed |= 0; seed = (seed + 0x6D2B79F5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+/* Generate a connected polyomino with N cells, deterministically from a seed.
+   Algorithm: start at (0,0). Each step, pick a random adjacent empty cell from
+   the current shape's perimeter and add it. */
+function generatePolyomino(n, seed){
+  const rng = mulberry32(seed);
+  const cells = new Map(); // key "gx,gy" -> {gx, gy}
+  cells.set("0,0", { gx: 0, gy: 0 });
+  while(cells.size < n){
+    // Find candidate empty neighbors of any current cell
+    const candidates = new Map();
+    for(const c of cells.values()){
+      const neighbors = [
+        [c.gx+1, c.gy], [c.gx-1, c.gy],
+        [c.gx, c.gy+1], [c.gx, c.gy-1]
+      ];
+      for(const [nx, ny] of neighbors){
+        const k = nx + "," + ny;
+        if(!cells.has(k) && !candidates.has(k)){
+          candidates.set(k, { gx: nx, gy: ny });
+        }
+      }
+    }
+    if(candidates.size === 0) break;
+    const arr = Array.from(candidates.values());
+    const pick = arr[Math.floor(rng() * arr.length)];
+    cells.set(pick.gx + "," + pick.gy, pick);
+  }
+  return Array.from(cells.values());
+}
+
+/* Number of cells for a given level — increases gently */
+function targetSizeForLevel(level){
+  // Levels 1-9: 2,3,4,5,6,7,8,9,10
+  // Levels 10+: 11, 12 (capped)
+  if(level <= 9) return level + 1;
+  if(level === 10) return 11;
+  return 12; // cap at 12 cells
+}
+
+/* Build the target for a given level (deterministic) */
+function buildTargetForLevel(level){
+  const n = targetSizeForLevel(level);
+  // Levels 1-5: use canonical SHAPE_LAYOUTS (2, 3, 4, 5, 6) → classic Numberlings shapes
+  // Levels 6+: deterministic random polyominoes (more interesting / unique shapes)
+  let cells;
+  if(level <= 5){
+    // Use canonical layouts: L1=Two, L2=Three, L3=Four, L4=Five, L5=Six
+    const num = level + 1;
+    cells = SHAPE_LAYOUTS[num].map(([gx, gy]) => ({ gx, gy }));
+  } else {
+    cells = generatePolyomino(n, level * 7919 + 31);
+  }
+  return {
+    n: cells.length,
+    cells,
+    canonical: canonicalizeShape(cells)
+  };
+}
+
+/* Translate cells so min gx & gy are 0. Returns sorted "gx,gy|gx,gy|..." string. */
+function shapeKey(cells){
+  let minX = Infinity, minY = Infinity;
+  for(const c of cells){
+    if(c.gx < minX) minX = c.gx;
+    if(c.gy < minY) minY = c.gy;
+  }
+  const arr = cells.map(c => [c.gx - minX, c.gy - minY]);
+  arr.sort((a, b) => (a[1] - b[1]) || (a[0] - b[0]));
+  return arr.map(p => p[0] + ',' + p[1]).join('|');
+}
+
+/* Compute all 8 symmetric variants and return the lex-smallest as canonical key */
+function canonicalizeShape(cells){
+  const variants = [];
+  // 4 rotations × {original, mirror}
+  function rotate(arr){ return arr.map(c => ({ gx: -c.gy, gy: c.gx })); }
+  function mirror(arr){ return arr.map(c => ({ gx: -c.gx, gy: c.gy })); }
+  let curr = cells.map(c => ({...c}));
+  for(let i=0;i<4;i++){
+    variants.push(shapeKey(curr));
+    variants.push(shapeKey(mirror(curr)));
+    curr = rotate(curr);
+  }
+  variants.sort();
+  return variants[0];
+}
+
+function profileMissionKey(){
+  const id = (userProfile && userProfile.name) ? userProfile.name : '_default';
+  return MISSION_KEY_PREFIX + id;
+}
+
+function loadMissionProgress(){
+  try{
+    const raw = localStorage.getItem(profileMissionKey());
+    if(!raw) return null;
+    const p = JSON.parse(raw);
+    if(typeof p.level === 'number' && typeof p.points === 'number'){
+      return p;
+    }
+  } catch(_){}
+  return null;
+}
+
+function saveMissionProgress(){
+  try{
+    localStorage.setItem(profileMissionKey(), JSON.stringify({
+      level: currentLevel,
+      points: currentPoints
+    }));
+  } catch(_){}
+}
+
+function toggleMissionMode(){
+  if(missionMode) exitMissionMode();
+  else enterMissionMode();
+}
+
+function enterMissionMode(){
+  // Exit other modes
+  if(swordMode) exitSwordMode();
+  if(blackHoleMode) exitBlackHoleMode();
+  if(fountainMode) exitFountainMode();
+  if(typeof closeMenu === 'function') closeMenu();
+
+  missionMode = true;
+  missionBtn.classList.add('active');
+  missionCard.classList.add('show');
+  missionCard.setAttribute('aria-hidden', 'false');
+
+  // Load progress for current profile
+  const saved = loadMissionProgress();
+  if(saved){
+    currentLevel = Math.max(1, saved.level);
+    currentPoints = Math.max(0, saved.points);
+  } else {
+    currentLevel = 1;
+    currentPoints = 0;
+  }
+  loadCurrentTarget();
+  flashToast(pickPhrase([`mission ${currentLevel}, ${userName()}!`, `let's build, ${userName()}!`, `level ${currentLevel}, here we go!`]));
+}
+
+function exitMissionMode(){
+  missionMode = false;
+  missionBtn.classList.remove('active');
+  missionCard.classList.remove('show');
+  missionCard.setAttribute('aria-hidden', 'true');
+  currentTarget = null;
+}
+
+function loadCurrentTarget(){
+  currentTarget = buildTargetForLevel(currentLevel);
+  levelCompleted = false;
+  renderMissionCard();
+}
+
+function renderMissionCard(){
+  missionLevelEl.textContent = `Level ${currentLevel}`;
+  missionPtsEl.textContent = `${currentPoints} pts`;
+  // Render the target preview using the same buildShapeSVG renderer (so kids
+  // recognize it as the same character they need to build)
+  const fakeShape = { id: 'mission-preview', cells: currentTarget.cells.map(c => ({...c})) };
+  const built = buildShapeSVG(fakeShape.cells, fakeShape);
+  // Strip explicit dimensions so it scales into the preview box
+  const scaledSvg = built.svg.replace(/width="\d+"\s*height="\d+"/, 'width="100%" height="100%"');
+  missionPreviewEl.innerHTML = scaledSvg;
+  // Info text
+  missionInfoEl.innerHTML = `Build a <b>${palette(currentTarget.n).name}</b><br/>(${currentTarget.n} blocks)`;
+}
+
+/* Called whenever the world changes — checks if any shape matches the target */
+function checkMissionCompletion(){
+  if(!missionMode || !currentTarget || levelCompleted) return;
+  for(const s of shapes){
+    if(s.cells.length !== currentTarget.n) continue;
+    const key = canonicalizeShape(s.cells);
+    if(key === currentTarget.canonical){
+      // MATCH!
+      onLevelComplete(s);
+      return;
+    }
+  }
+}
+
+function onLevelComplete(shape){
+  levelCompleted = true;
+  const earned = currentLevel * 10;
+  currentPoints += earned;
+  saveMissionProgress();
+
+  // Visual: celebrate
+  missionCard.classList.add('complete');
+  setTimeout(() => missionCard.classList.remove('complete'), 800);
+
+  // Big "Level Up!" overlay
+  document.getElementById('levelUpTitle').textContent = `Level ${currentLevel} Complete!`;
+  document.getElementById('levelUpDesc').textContent = `+${earned} points · ${userName()}!`;
+  levelUpEl.classList.remove('show');
+  void levelUpEl.offsetWidth; // force reflow
+  levelUpEl.classList.add('show');
+  levelUpEl.setAttribute('aria-hidden', 'false');
+
+  // Burst particles around the matched shape
+  if(shape){
+    const cx = shape.x + shape._bbox.w / 2;
+    const cy = shape.y + shape._bbox.h / 2;
+    burst(cx, cy, palette(shape.cells.length).color);
+    // extra confetti
+    for(let i = 0; i < 3; i++){
+      setTimeout(() => burst(cx + (Math.random()-0.5)*80, cy + (Math.random()-0.5)*80, ["#ffd166","#ff6b9d","#9bf6ff","#caffbf"][i]), i*120);
+    }
+  }
+
+  // Move to next level after a beat
+  setTimeout(() => {
+    levelUpEl.classList.remove('show');
+    levelUpEl.setAttribute('aria-hidden', 'true');
+    currentLevel++;
+    saveMissionProgress();
+    loadCurrentTarget();
+    flashToast(pickPhrase([`level ${currentLevel}!`, `awesome, ${userName()}!`, `next up: ${palette(currentTarget.n).name}!`]));
+  }, 1700);
+}
+
+missionRestartBtn.addEventListener('click', () => {
+  if(!confirm("Start over from Level 1? Your points will reset.")) return;
+  currentLevel = 1;
+  currentPoints = 0;
+  saveMissionProgress();
+  loadCurrentTarget();
+  flashToast(`fresh start, ${userName()}!`);
+});
 
 /* ===================================================================
    SHAPE RENDERING
@@ -3105,6 +3761,8 @@ function tick(){
 
   // Update black hole lifecycles
   tickBlackHoles(dt, now);
+  // Update fountains (emit blocks)
+  tickFountains(now);
 
   for(const s of shapes){
     if(s.dragging) continue;
@@ -3311,6 +3969,8 @@ function clearWorld(){
   fruits.length = 0;
   for(const bh of blackHoles) bh.el.remove();
   blackHoles.length = 0;
+  for(const f of fountains) f.el.remove();
+  fountains.length = 0;
   updateStats();
   flashToast(pickPhrase(["🧹 all clean!", `fresh start, ${userName()}!`, "🧹 clean slate!"]));
 }
@@ -3320,6 +3980,8 @@ function updateStats(){
   for(const s of shapes) total += s.cells.length;
   popEl.textContent = total;
   grpEl.textContent = shapes.filter(s => s.cells.length > 1).length;
+  // Mission progress check (no-op if mission mode is off)
+  if(typeof checkMissionCompletion === 'function') checkMissionCompletion();
 }
 
 let toastTimer;
