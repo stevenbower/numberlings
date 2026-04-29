@@ -1,0 +1,1319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>Numberlings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&family=Fredoka:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#2a2030;
+    --paper:#fffaf0;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0; padding:0; height:100%; overflow:hidden; overscroll-behavior:none;}
+  body{
+    font-family:'Fredoka', sans-serif;
+    color:var(--ink);
+    background:
+      radial-gradient(ellipse at 50% 110%, #bdf3c8 0%, transparent 45%),
+      radial-gradient(ellipse at 15% 0%, #ffe5ec 0%, transparent 50%),
+      radial-gradient(ellipse at 85% 5%, #fff3b0 0%, transparent 45%),
+      linear-gradient(180deg, #fff7ee 0%, #ffe9f3 50%, #e6f7ff 100%);
+    user-select:none; -webkit-user-select:none;
+    touch-action:none;
+  }
+
+  .cloud{
+    position:fixed; pointer-events:none; z-index:1;
+    background: rgba(255,255,255,0.85);
+    border-radius: 100px;
+  }
+  .cloud::before, .cloud::after{ content:""; position:absolute; background:inherit; border-radius:50%;}
+  .cloud.c1{ width:140px; height:38px; top:8%; left:8%;}
+  .cloud.c1::before{ width:60px; height:60px; top:-28px; left:18px;}
+  .cloud.c1::after{ width:46px; height:46px; top:-22px; left:70px;}
+  .cloud.c2{ width:110px; height:30px; top:14%; right:10%;}
+  .cloud.c2::before{ width:48px; height:48px; top:-22px; left:14px;}
+  .cloud.c2::after{ width:38px; height:38px; top:-18px; left:56px;}
+
+  header{
+    position:fixed; top:0; left:0; right:0; z-index:50;
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px;
+    pointer-events:none;
+  }
+  .title{
+    font-family:'Baloo 2', sans-serif;
+    font-weight:800; font-size:26px; letter-spacing:-0.01em; line-height:1;
+    pointer-events:auto; color:var(--ink);
+    text-shadow: 2px 2px 0 rgba(255,255,255,0.6);
+  }
+  .title small{
+    display:block; font-family:'Fredoka', sans-serif; font-weight:500;
+    font-size:11px; opacity:.7; margin-top:3px;
+  }
+  .stats{ pointer-events:auto; display:flex; gap:8px;}
+  .stat{
+    background:var(--paper);
+    border:3px solid var(--ink); border-radius:14px;
+    padding:6px 12px;
+    font-family:'Baloo 2', sans-serif; font-weight:700; font-size:13px;
+    box-shadow: 0 3px 0 var(--ink);
+  }
+  .stat span{ font-size:11px; opacity:.6; margin-right:4px; font-weight:500;}
+
+  #stage{ position:fixed; inset:0; z-index:5; overflow:hidden;}
+
+  /* === A "shape" = one composed character. The DOM container holds all its blocks. === */
+  .shape{
+    position:absolute;
+    top:0; left:0;
+    will-change:transform;
+    cursor:grab;
+    z-index:10;
+    transform-origin: 0 0;
+  }
+  .shape.dragging{ cursor:grabbing; z-index:30; }
+  .shape.appear{ animation: appear .45s cubic-bezier(.34,1.56,.64,1) backwards;}
+  @keyframes appear{
+    0%{ transform: var(--base) scale(0) rotate(-30deg); opacity:0;}
+    60%{ opacity:1;}
+    100%{ }
+  }
+
+  /* Each cell of the shape — we draw the body + cell borders + shadow as one SVG to make seams clean */
+  .shape svg{ display:block; overflow:visible;}
+
+  .number-tag{
+    position:absolute;
+    font-family:'Baloo 2', sans-serif; font-weight:800;
+    color:var(--ink);
+    pointer-events:none;
+    line-height:1;
+    text-shadow: 2px 2px 0 rgba(255,255,255,0.7);
+  }
+
+  .snap-ghost{
+    position:absolute;
+    border:3px dashed #ff6b9d;
+    border-radius:18px;
+    background: rgba(255,107,157,0.18);
+    pointer-events:none;
+    z-index:14;
+    top:0; left:0;
+    transform-origin: 0 0;
+    animation: snap-pulse .5s ease-in-out infinite alternate;
+  }
+  @keyframes snap-pulse{ from{opacity:.7;} to{opacity:1;} }
+
+  #dock{
+    position:fixed; bottom:0; left:0; right:0; z-index:40;
+    padding:12px 14px 18px;
+    display:flex; gap:8px; align-items:center; justify-content:center;
+    pointer-events:none;
+  }
+  .dock-inner{
+    pointer-events:auto;
+    display:flex; gap:8px;
+    background:var(--paper); border:3px solid var(--ink); border-radius:22px;
+    padding:8px;
+    box-shadow: 0 5px 0 var(--ink);
+    flex-wrap:wrap; justify-content:center;
+    max-width: 100%;
+  }
+  .seed-btn{
+    width:60px; height:60px;
+    border:3px solid var(--ink); border-radius:14px;
+    background:#ec3d3d; /* "1" red */
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 3px 0 var(--ink);
+    transition: transform .1s ease, box-shadow .1s ease;
+    padding:6px;
+    position:relative;
+  }
+  .seed-btn:hover{ transform: translateY(-2px); box-shadow: 0 5px 0 var(--ink);}
+  .seed-btn:active{ transform: translateY(2px); box-shadow: 0 1px 0 var(--ink);}
+  .seed-btn .lbl{
+    position:absolute; top:-12px; right:-8px;
+    background:var(--paper); border:2px solid var(--ink); border-radius:10px;
+    font-family:'Baloo 2', sans-serif; font-weight:800; font-size:12px;
+    padding: 2px 6px; line-height:1;
+  }
+  .icon-btn{
+    width:54px; height:54px;
+    border:3px solid var(--ink); border-radius:14px;
+    background:var(--paper);
+    cursor:pointer;
+    display:flex; align-items:center; justify-content:center;
+    font-size:22px;
+    box-shadow: 0 3px 0 var(--ink);
+    color:var(--ink);
+  }
+  .icon-btn:hover{ transform: translateY(-2px); box-shadow: 0 5px 0 var(--ink);}
+  .icon-btn:active{ transform: translateY(2px); box-shadow: 0 1px 0 var(--ink);}
+  .divider{ width:3px; height:38px; background:var(--ink); border-radius:2px; opacity:.2; margin:0 2px;}
+
+  #toast{
+    position:fixed; left:50%; bottom:100px; transform:translateX(-50%);
+    z-index:60;
+    background:var(--ink); color:var(--paper);
+    font-family:'Fredoka', sans-serif; font-weight:600; font-size:13px;
+    padding:10px 18px;
+    border-radius:18px;
+    pointer-events:none;
+    opacity:0;
+    transition:opacity .25s, transform .25s;
+    box-shadow: 0 3px 0 rgba(0,0,0,0.2);
+  }
+  #toast.show{ opacity:1; transform:translateX(-50%) translateY(-6px);}
+
+  #intro{
+    position:fixed; inset:0; z-index:80;
+    background: linear-gradient(180deg, #fff7ee 0%, #ffe9f3 50%, #e6f7ff 100%);
+    display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:18px;
+    text-align:center;
+    padding:24px;
+    transition: opacity .5s ease;
+  }
+  #intro.hidden{ opacity:0; pointer-events:none;}
+  #intro h1{
+    font-family:'Baloo 2', sans-serif; font-weight:800;
+    font-size: clamp(48px, 13vw, 100px);
+    margin:0; letter-spacing:-0.02em; line-height:0.95;
+  }
+  #intro h1 span{ color:#ec3d3d; display:inline-block; transform:rotate(-5deg);}
+  #intro p{
+    font-family:'Fredoka', sans-serif; font-weight:500; font-size:16px;
+    max-width:340px; line-height:1.5; margin:0;
+    color:#5a4860;
+  }
+  #intro .start{
+    margin-top:8px;
+    font-family:'Baloo 2', sans-serif; font-size:18px; font-weight:800;
+    background:#ec3d3d; color:var(--paper);
+    padding:14px 32px;
+    border:3px solid var(--ink); border-radius:18px;
+    cursor:pointer;
+    box-shadow: 0 5px 0 var(--ink);
+  }
+  #intro .start:active{ transform:translateY(3px); box-shadow:0 2px 0 var(--ink);}
+
+  @media (max-width:520px){
+    .title{ font-size:22px;}
+    .title small{ font-size:10px;}
+    .stat{ font-size:11px; padding:5px 9px;}
+    .seed-btn{ width:54px; height:54px;}
+    .icon-btn{ width:46px; height:46px; font-size:18px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="cloud c1"></div>
+<div class="cloud c2"></div>
+
+<header>
+  <div class="title">
+    Numberlings
+    <small>each number, a friend!</small>
+  </div>
+  <div class="stats">
+    <div class="stat"><span>blocks</span><b id="pop">0</b></div>
+    <div class="stat"><span>numbers</span><b id="grp">0</b></div>
+  </div>
+</header>
+
+<div id="stage"></div>
+
+<div id="dock">
+  <div class="dock-inner" id="dockInner"></div>
+</div>
+
+<div id="toast"></div>
+
+<div id="intro">
+  <h1>Number<span>lings</span></h1>
+  <p>Tap to drop a One into the world. Stick Ones together to grow them up — Two, Three, Four, all the way up! Each number is a different friend with a different face.</p>
+  <button class="start" id="startBtn">Let's Play!</button>
+</div>
+
+<script>
+/* ===================================================================
+   NUMBERLINGS — kid show inspired
+   - Only "1" seed in dock. Each block = 1.
+   - When N blocks are connected, the whole shape is "the number N",
+     drawn with a single face & personality matching N.
+   - Side-snap orthogonal connections only.
+=================================================================== */
+
+const CELL = 70;          // grid cell size
+const SNAP_DIST = 32;
+const STROKE = 3;
+
+/* ---------- World ---------- */
+const stage = document.getElementById('stage');
+const dockInner = document.getElementById('dockInner');
+const popEl = document.getElementById('pop');
+const grpEl = document.getElementById('grp');
+const toastEl = document.getElementById('toast');
+
+let nextShapeId = 1;
+const shapes = [];        // {id, cells:[{gx,gy}], el, x,y,vx,vy,rot,rotV, dragging, _bbox}
+let dragMap = new Map();
+let snapGhost = null;
+
+/* ---------- Personalities (by total block count) ---------- */
+// Each entry returns rendering for the whole shape. Show-style colors.
+const PALETTE = {
+  1:  { color:"#ec3d3d", deep:"#a82020", name:"One",    mood:"curious"   },
+  2:  { color:"#f59c2c", deep:"#a56412", name:"Two",    mood:"helpful"   },
+  3:  { color:"#fcd722", deep:"#a88800", name:"Three",  mood:"silly"     },
+  4:  { color:"#3eb345", deep:"#1f6f24", name:"Four",   mood:"sturdy"    },
+  5:  { color:"#42a8d6", deep:"#1f6486", name:"Five",   mood:"heroic"    },
+  6:  { color:"#5a3aaa", deep:"#321e63", name:"Six",    mood:"bubbly"    },
+  7:  { color:"#7a5fd6", deep:"#3a2876", name:"Seven",  mood:"lucky"     },
+  8:  { color:"#e23ea0", deep:"#8a1a5e", name:"Eight",  mood:"swirly"    },
+  9:  { color:"#9aa3ad", deep:"#555c66", name:"Nine",   mood:"thoughtful"},
+  10: { color:"#fffaf0", deep:"#ec3d3d", name:"Ten",    mood:"sparkly"   }
+};
+function palette(n){
+  if(PALETTE[n]) return PALETTE[n];
+  // beyond 10: cycle through but tag by n
+  const cycle = [PALETTE[1],PALETTE[2],PALETTE[3],PALETTE[4],PALETTE[5],PALETTE[6],PALETTE[7],PALETTE[8],PALETTE[9],PALETTE[10]];
+  const p = { ...cycle[(n-1) % cycle.length] };
+  p.name = `Number ${n}`;
+  return p;
+}
+
+/* ---------- Build dock ---------- */
+const seed = document.createElement('button');
+seed.className = 'seed-btn';
+seed.title = "Drop a One";
+seed.innerHTML = `
+  <svg viewBox="0 0 60 60" width="100%" height="100%">
+    <rect x="3" y="3" width="54" height="54" rx="10" fill="#ec3d3d" stroke="#2a2030" stroke-width="3"/>
+    <circle cx="30" cy="26" r="9" fill="white" stroke="#2a2030" stroke-width="2.5"/>
+    <circle cx="32" cy="27" r="4" fill="#2a2030"/>
+    <circle cx="33.5" cy="25.5" r="1.4" fill="white"/>
+    <path d="M 22 42 Q 30 47 38 42" stroke="#2a2030" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+  </svg>
+  <span class="lbl">+1</span>
+`;
+seed.addEventListener('click', () => spawnOne());
+dockInner.appendChild(seed);
+
+const div1 = document.createElement('div'); div1.className='divider'; dockInner.appendChild(div1);
+
+const shakeBtn = document.createElement('button');
+shakeBtn.className = 'icon-btn'; shakeBtn.textContent = "✨"; shakeBtn.title = "Wiggle!";
+shakeBtn.addEventListener('click', shakeWorld);
+dockInner.appendChild(shakeBtn);
+
+const breakBtn = document.createElement('button');
+breakBtn.className = 'icon-btn'; breakBtn.textContent = "✂️"; breakBtn.title = "Break apart";
+breakBtn.addEventListener('click', breakAll);
+dockInner.appendChild(breakBtn);
+
+const clearBtn = document.createElement('button');
+clearBtn.className = 'icon-btn'; clearBtn.textContent = "🧹"; clearBtn.title = "Clear all";
+clearBtn.addEventListener('click', clearWorld);
+dockInner.appendChild(clearBtn);
+
+/* ===================================================================
+   SHAPE RENDERING
+   Given a list of cells (gx,gy), build SVG with:
+   - Body fill
+   - Inner cell-border lines (the "block divisions" visible on >1 shapes)
+   - Outer outline (the silhouette of the shape)
+   - Personality face & decorations placed on the bounding box
+=================================================================== */
+
+function buildShapeSVG(cells, shape){
+  const n = cells.length;
+  const p = palette(n);
+
+  // bounding box in grid coords
+  let minGx = Infinity, minGy = Infinity, maxGx = -Infinity, maxGy = -Infinity;
+  for(const c of cells){
+    if(c.gx < minGx) minGx = c.gx;
+    if(c.gy < minGy) minGy = c.gy;
+    if(c.gx > maxGx) maxGx = c.gx;
+    if(c.gy > maxGy) maxGy = c.gy;
+  }
+  const cols = maxGx - minGx + 1;
+  const rows = maxGy - minGy + 1;
+
+  const PAD = 30; // breathing room for arms/legs/hair
+  const W = cols * CELL + PAD*2;
+  const H = rows * CELL + PAD*2;
+
+  // localized cell positions for SVG
+  const localCells = cells.map(c => ({
+    gx: c.gx - minGx,
+    gy: c.gy - minGy,
+    x: PAD + (c.gx - minGx) * CELL,
+    y: PAD + (c.gy - minGy) * CELL,
+  }));
+
+  const cellSet = new Set(localCells.map(c => c.gx+','+c.gy));
+
+  // Body: union of cells, drawn via individual rects (no rounding so they tile cleanly).
+  // Inner seam lines: for each pair of adjacent cells, draw a line at the boundary.
+  // Outer outline: trace edges that are NOT shared with a neighbor.
+
+  const bodyRects = localCells.map(c =>
+    `<rect x="${c.x}" y="${c.y}" width="${CELL}" height="${CELL}" fill="${p.color}"/>`
+  ).join('');
+
+  // inner seams (subtle dark lines between blocks)
+  let seams = '';
+  for(const c of localCells){
+    // right seam if neighbor exists
+    if(cellSet.has((c.gx+1)+','+c.gy)){
+      seams += `<line x1="${c.x+CELL}" y1="${c.y+4}" x2="${c.x+CELL}" y2="${c.y+CELL-4}" stroke="${p.deep}" stroke-width="1.5" stroke-linecap="round" opacity="0.55"/>`;
+    }
+    // bottom seam
+    if(cellSet.has(c.gx+','+(c.gy+1))){
+      seams += `<line x1="${c.x+4}" y1="${c.y+CELL}" x2="${c.x+CELL-4}" y2="${c.y+CELL}" stroke="${p.deep}" stroke-width="1.5" stroke-linecap="round" opacity="0.55"/>`;
+    }
+  }
+
+  // outline: trace outer edges with a path, rounded corners
+  const outline = traceOutline(localCells, cellSet);
+
+  // body bounding box (without padding) — for face placement
+  const bbX = PAD, bbY = PAD, bbW = cols*CELL, bbH = rows*CELL;
+
+  // Personality decorations
+  const decor = renderPersonality(n, { x: bbX, y: bbY, w: bbW, h: bbH, cells: localCells, cellSet });
+
+  return {
+    svg: `
+      <svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="overflow:visible;">
+        <defs>
+          <filter id="dropshadow-${shape.id}" x="-20%" y="-20%" width="140%" height="140%">
+            <feOffset dx="0" dy="4"/>
+            <feColorMatrix type="matrix" values="0 0 0 0 0.16  0 0 0 0 0.13  0 0 0 0 0.19  0 0 0 1 0"/>
+            <feGaussianBlur stdDeviation="0"/>
+            <feComposite in2="SourceGraphic" operator="out"/>
+            <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+        </defs>
+        <g style="filter: drop-shadow(0 4px 0 #2a2030);">
+          ${decor.behind || ''}
+          ${bodyRects}
+          ${seams}
+          ${outline}
+          ${decor.face || ''}
+          ${decor.front || ''}
+        </g>
+      </svg>
+    `,
+    width: W, height: H,
+    cols, rows, pad: PAD,
+    bbX, bbY, bbW, bbH
+  };
+}
+
+/* Outline tracer: walks cell edges and produces a single rounded path. */
+function traceOutline(cells, cellSet){
+  const RADIUS = 12; // outer corner radius
+  // collect edges that are not shared with another cell
+  // each cell has 4 edges (T,R,B,L). An edge is exterior if neighbor on that side doesn't exist.
+  // We'll build a list of segments, then concatenate them with rounded corners.
+  // For simplicity, we draw the outline as a polyline that goes around the shape.
+  // Algorithm: build map of corner points, walk edges in order.
+  // To keep this robust for arbitrary connected shapes, use a vertex-walk.
+
+  // Build set of corner points that belong to outline. A vertex is on the outline if the four
+  // surrounding cells form a configuration that is not "all in" or "all out".
+
+  // We'll instead just stroke each exterior edge separately, with rounded line caps.
+  // This is visually fine because edges align perfectly at corners.
+
+  let segs = '';
+  for(const c of cells){
+    // top
+    if(!cellSet.has(c.gx+','+(c.gy-1))){
+      segs += `<line x1="${c.x}" y1="${c.y}" x2="${c.x+CELL}" y2="${c.y}" />`;
+    }
+    // bottom
+    if(!cellSet.has(c.gx+','+(c.gy+1))){
+      segs += `<line x1="${c.x}" y1="${c.y+CELL}" x2="${c.x+CELL}" y2="${c.y+CELL}" />`;
+    }
+    // left
+    if(!cellSet.has((c.gx-1)+','+c.gy)){
+      segs += `<line x1="${c.x}" y1="${c.y}" x2="${c.x}" y2="${c.y+CELL}" />`;
+    }
+    // right
+    if(!cellSet.has((c.gx+1)+','+c.gy)){
+      segs += `<line x1="${c.x+CELL}" y1="${c.y}" x2="${c.x+CELL}" y2="${c.y+CELL}" />`;
+    }
+  }
+  return `<g stroke="#2a2030" stroke-width="${STROKE}" stroke-linecap="square">${segs}</g>`;
+}
+
+/* ===================================================================
+   PERSONALITY RENDERING — each number gets its signature face/decor
+=================================================================== */
+function renderPersonality(n, box){
+  // Default face placement: top cell center if shape is multi-row tall,
+  // else center of bounding box.
+  const cx = box.x + box.w/2;
+  const cy = box.y + box.h/2;
+
+  // Pick a face anchor: the topmost row, centered horizontally over its row's blocks
+  const topY = Math.min(...box.cells.map(c=>c.y));
+  const topRowCells = box.cells.filter(c => c.y === topY);
+  const topMinX = Math.min(...topRowCells.map(c=>c.x));
+  const topMaxX = Math.max(...topRowCells.map(c=>c.x)) + CELL;
+  const fcx = (topMinX + topMaxX)/2;
+  const fcy = topY + CELL/2;
+
+  switch(n){
+    case 1: return one(fcx, fcy, box);
+    case 2: return two(box);
+    case 3: return three(box);
+    case 4: return four(box);
+    case 5: return five(box);
+    case 6: return six(box);
+    case 7: return seven(box);
+    case 8: return eight(box);
+    case 9: return nine(box);
+    case 10: return ten(box);
+    default: return generic(n, box);
+  }
+}
+
+/* ---- 1: single big eye, smile, little arms+legs ---- */
+function one(fcx, fcy, box){
+  return {
+    behind: armsAndLegs(box, "#a82020"),
+    face: `
+      <circle cx="${fcx}" cy="${fcy-4}" r="14" fill="white" stroke="#2a2030" stroke-width="2.5"/>
+      <circle cx="${fcx+3}" cy="${fcy-2}" r="6" fill="#2a2030"/>
+      <circle cx="${fcx+5}" cy="${fcy-4}" r="1.8" fill="white"/>
+      <path d="M ${fcx-10} ${fcy+18} Q ${fcx} ${fcy+26} ${fcx+10} ${fcy+18}" stroke="#2a2030" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+      <path d="M ${fcx-7} ${fcy+20} Q ${fcx} ${fcy+22} ${fcx+7} ${fcy+20}" stroke="#ff8fa3" stroke-width="3" fill="none" stroke-linecap="round" opacity="0.7"/>
+    `
+  };
+}
+
+/* ---- 2: glasses, two eyes, simple smile, 1x2 vertical ---- */
+function two(box){
+  // 2 is typically vertical 1x2. Face on top block.
+  const tc = topCenter(box);
+  return {
+    behind: armsAndLegs(box, "#a56412"),
+    face: `
+      <!-- glasses -->
+      <circle cx="${tc.x-9}" cy="${tc.y-3}" r="9" fill="white" stroke="#2a2030" stroke-width="2.5"/>
+      <circle cx="${tc.x+9}" cy="${tc.y-3}" r="9" fill="white" stroke="#2a2030" stroke-width="2.5"/>
+      <line x1="${tc.x-1}" y1="${tc.y-3}" x2="${tc.x+1}" y2="${tc.y-3}" stroke="#2a2030" stroke-width="2.5"/>
+      <circle cx="${tc.x-9}" cy="${tc.y-2}" r="3.5" fill="#2a2030"/>
+      <circle cx="${tc.x+9}" cy="${tc.y-2}" r="3.5" fill="#2a2030"/>
+      <circle cx="${tc.x-7.5}" cy="${tc.y-3.5}" r="1.2" fill="white"/>
+      <circle cx="${tc.x+10.5}" cy="${tc.y-3.5}" r="1.2" fill="white"/>
+      <!-- mouth -->
+      <path d="M ${tc.x-6} ${tc.y+15} Q ${tc.x} ${tc.y+22} ${tc.x+6} ${tc.y+15}" stroke="#2a2030" stroke-width="2.5" fill="#a56412" stroke-linecap="round"/>
+    `
+  };
+}
+
+/* ---- 3: jester crown, two eyes, big smile, three buttons ---- */
+function three(box){
+  const tc = topCenter(box);
+  // jester crown spikes (yellow with red tips) + buttons down the body
+  const crown = `
+    <g>
+      <path d="M ${tc.x-22} ${tc.y-22} L ${tc.x-18} ${tc.y-38} L ${tc.x-12} ${tc.y-22}" fill="#fcd722" stroke="#2a2030" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M ${tc.x-10} ${tc.y-22} L ${tc.x} ${tc.y-42} L ${tc.x+10} ${tc.y-22}" fill="#fcd722" stroke="#2a2030" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M ${tc.x+12} ${tc.y-22} L ${tc.x+18} ${tc.y-38} L ${tc.x+22} ${tc.y-22}" fill="#fcd722" stroke="#2a2030" stroke-width="2.5" stroke-linejoin="round"/>
+      <circle cx="${tc.x-18}" cy="${tc.y-38}" r="3" fill="#ec3d3d" stroke="#2a2030" stroke-width="1.5"/>
+      <circle cx="${tc.x}" cy="${tc.y-42}" r="3" fill="#ec3d3d" stroke="#2a2030" stroke-width="1.5"/>
+      <circle cx="${tc.x+18}" cy="${tc.y-38}" r="3" fill="#ec3d3d" stroke="#2a2030" stroke-width="1.5"/>
+    </g>
+  `;
+  // buttons running down center on lower blocks
+  let buttons = '';
+  const sortedCells = [...box.cells].sort((a,b)=>a.y-b.y);
+  for(let i=1;i<sortedCells.length;i++){
+    const c = sortedCells[i];
+    buttons += `<circle cx="${c.x + CELL/2}" cy="${c.y + CELL/2}" r="5" fill="#ec3d3d" stroke="#2a2030" stroke-width="2"/>`;
+  }
+  return {
+    behind: armsAndLegs(box, "#a88800") + crown,
+    face: `
+      <ellipse cx="${tc.x-9}" cy="${tc.y-2}" rx="6" ry="7" fill="white" stroke="#2a2030" stroke-width="2"/>
+      <ellipse cx="${tc.x+9}" cy="${tc.y-2}" rx="6" ry="7" fill="white" stroke="#2a2030" stroke-width="2"/>
+      <circle cx="${tc.x-8}" cy="${tc.y-1}" r="3" fill="#2a2030"/>
+      <circle cx="${tc.x+10}" cy="${tc.y-1}" r="3" fill="#2a2030"/>
+      <circle cx="${tc.x-7}" cy="${tc.y-3}" r="1.2" fill="white"/>
+      <circle cx="${tc.x+11}" cy="${tc.y-3}" r="1.2" fill="white"/>
+      <path d="M ${tc.x-10} ${tc.y+14} Q ${tc.x} ${tc.y+24} ${tc.x+10} ${tc.y+14} Z" fill="#2a2030"/>
+      <path d="M ${tc.x-7} ${tc.y+16} Q ${tc.x} ${tc.y+19} ${tc.x+7} ${tc.y+16}" stroke="#ff8fa3" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+      ${buttons}
+    `
+  };
+}
+
+/* ---- 4: sturdy 2x2, two eyes on top row, smile across ---- */
+function four(box){
+  // place face roughly in the middle of the top row of cells
+  const topY = Math.min(...box.cells.map(c=>c.y));
+  const topRow = box.cells.filter(c => c.y === topY);
+  const minX = Math.min(...topRow.map(c=>c.x));
+  const maxX = Math.max(...topRow.map(c=>c.x)) + CELL;
+  const fcx = (minX+maxX)/2;
+  const fcy = topY + CELL*0.55;
+  // smile sits below face area on body
+  const sy = topY + CELL + 14;
+  // little square "hair" tufts on top corners of top-left and top-right cells
+  const tufts = topRow.length > 1 ? `
+    <rect x="${minX+8}" y="${topY-12}" width="14" height="14" fill="#1f6f24" stroke="#2a2030" stroke-width="2.5" rx="2"/>
+    <rect x="${maxX-22}" y="${topY-12}" width="14" height="14" fill="#1f6f24" stroke="#2a2030" stroke-width="2.5" rx="2"/>
+  ` : '';
+  return {
+    behind: armsAndLegs(box, "#1f6f24") + tufts,
+    face: `
+      <ellipse cx="${fcx-14}" cy="${fcy}" rx="7" ry="8" fill="white" stroke="#2a2030" stroke-width="2"/>
+      <ellipse cx="${fcx+14}" cy="${fcy}" rx="7" ry="8" fill="white" stroke="#2a2030" stroke-width="2"/>
+      <circle cx="${fcx-13}" cy="${fcy+1}" r="3.5" fill="#2a2030"/>
+      <circle cx="${fcx+15}" cy="${fcy+1}" r="3.5" fill="#2a2030"/>
+      <circle cx="${fcx-12}" cy="${fcy-1}" r="1.3" fill="white"/>
+      <circle cx="${fcx+16}" cy="${fcy-1}" r="1.3" fill="white"/>
+      <path d="M ${fcx-14} ${sy} Q ${fcx} ${sy+10} ${fcx+14} ${sy}" stroke="#2a2030" stroke-width="3" fill="none" stroke-linecap="round"/>
+    `
+  };
+}
+
+/* ---- 5: 1x5 vertical, star-hand wave, mask, smile ---- */
+function five(box){
+  const tc = topCenter(box);
+  // Star at the end of an arm (wave)
+  const armX = box.x + box.w + 10;
+  const armY = tc.y + 10;
+  const star = drawStar(armX+18, armY-8, 11, "#42a8d6", "#2a2030");
+  return {
+    behind: `
+      ${legs(box, "#1f6486")}
+      <!-- left arm tucked -->
+      <path d="M ${box.x-2} ${tc.y+18} q -14 4 -10 22" stroke="#2a2030" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="${box.x-14}" cy="${tc.y+44}" r="7" fill="#42a8d6" stroke="#2a2030" stroke-width="2.5"/>
+      <!-- right arm waving with star hand -->
+      <path d="M ${box.x+box.w+2} ${tc.y+18} q 16 -14 14 -28" stroke="#2a2030" stroke-width="3" fill="none" stroke-linecap="round"/>
+      ${star}
+    `,
+    face: `
+      <!-- mask -->
+      <path d="M ${tc.x-22} ${tc.y-6} q 0 -10 12 -10 q 4 0 10 4 q 6 -4 10 -4 q 12 0 12 10 q 0 8 -10 10 q -8 2 -12 -2 q -4 4 -12 2 q -10 -2 -10 -10 z"
+            fill="#42a8d6" stroke="#2a2030" stroke-width="2.5" stroke-linejoin="round"/>
+      <ellipse cx="${tc.x-9}" cy="${tc.y-4}" rx="5" ry="6" fill="white" stroke="#2a2030" stroke-width="1.5"/>
+      <ellipse cx="${tc.x+9}" cy="${tc.y-4}" rx="5" ry="6" fill="white" stroke="#2a2030" stroke-width="1.5"/>
+      <circle cx="${tc.x-8}" cy="${tc.y-3}" r="2.6" fill="#2a2030"/>
+      <circle cx="${tc.x+10}" cy="${tc.y-3}" r="2.6" fill="#2a2030"/>
+      <path d="M ${tc.x-10} ${tc.y+14} Q ${tc.x} ${tc.y+22} ${tc.x+10} ${tc.y+14}" stroke="#2a2030" stroke-width="2.8" fill="#2a2030" stroke-linecap="round"/>
+      <path d="M ${tc.x-7} ${tc.y+16} Q ${tc.x} ${tc.y+18} ${tc.x+7} ${tc.y+16}" stroke="#ff8fa3" stroke-width="2" fill="none" stroke-linecap="round"/>
+    `
+  };
+}
+
+/* ---- 6: 2x3 (or 3x2), six dots like dice, eyelashes, smile ---- */
+function six(box){
+  // 6 should ideally be 2 cols x 3 rows or 3x2. We'll just decorate each cell with one dot.
+  const dots = box.cells.map(c =>
+    `<circle cx="${c.x + CELL/2}" cy="${c.y + CELL/2}" r="9" fill="#7a5fd6" stroke="#321e63" stroke-width="2" opacity="0.85"/>`
+  ).join('');
+  // face on top row center
+  const topY = Math.min(...box.cells.map(c=>c.y));
+  const topRow = box.cells.filter(c=>c.y===topY);
+  const minX = Math.min(...topRow.map(c=>c.x));
+  const maxX = Math.max(...topRow.map(c=>c.x)) + CELL;
+  const fcx = (minX+maxX)/2;
+  const fcy = topY + CELL/2;
+  // smile placed in middle of body
+  const allMinY = Math.min(...box.cells.map(c=>c.y));
+  const allMaxY = Math.max(...box.cells.map(c=>c.y)) + CELL;
+  const my = (allMinY + allMaxY)/2 + 4;
+  return {
+    behind: armsAndLegs(box, "#321e63"),
+    front: dots,
+    face: `
+      <!-- big lashy eyes flanking the body -->
+      <ellipse cx="${fcx-22}" cy="${fcy}" rx="11" ry="13" fill="white" stroke="#2a2030" stroke-width="2.5"/>
+      <ellipse cx="${fcx+22}" cy="${fcy}" rx="11" ry="13" fill="white" stroke="#2a2030" stroke-width="2.5"/>
+      <circle cx="${fcx-20}" cy="${fcy+2}" r="5" fill="#2a2030"/>
+      <circle cx="${fcx+24}" cy="${fcy+2}" r="5" fill="#2a2030"/>
+      <circle cx="${fcx-19}" cy="${fcy}" r="1.8" fill="white"/>
+      <circle cx="${fcx+25}" cy="${fcy}" r="1.8" fill="white"/>
+      <!-- lashes -->
+      <g stroke="#ec3d3d" stroke-width="2.5" stroke-linecap="round">
+        <line x1="${fcx-30}" y1="${fcy-12}" x2="${fcx-34}" y2="${fcy-18}"/>
+        <line x1="${fcx-22}" y1="${fcy-14}" x2="${fcx-22}" y2="${fcy-22}"/>
+        <line x1="${fcx-14}" y1="${fcy-12}" x2="${fcx-10}" y2="${fcy-18}"/>
+        <line x1="${fcx+30}" y1="${fcy-12}" x2="${fcx+34}" y2="${fcy-18}"/>
+        <line x1="${fcx+22}" y1="${fcy-14}" x2="${fcx+22}" y2="${fcy-22}"/>
+        <line x1="${fcx+14}" y1="${fcy-12}" x2="${fcx+10}" y2="${fcy-18}"/>
+      </g>
+      <path d="M ${fcx-16} ${my} Q ${fcx} ${my+12} ${fcx+16} ${my} Z" fill="#ff8fa3" stroke="#2a2030" stroke-width="2.5" stroke-linejoin="round"/>
+    `
+  };
+}
+
+/* ---- 7: 1x7 vertical rainbow stripes, hair tufts, big eyes ---- */
+function seven(box){
+  const tc = topCenter(box);
+  const colors = ["#ec3d3d","#f59c2c","#fcd722","#3eb345","#42a8d6","#5a3aaa","#a23eb3"];
+  // override body colors per cell
+  const sortedCells = [...box.cells].sort((a,b)=>a.y-b.y);
+  let stripes = '';
+  sortedCells.forEach((c,i) => {
+    const col = colors[i % colors.length];
+    stripes += `<rect x="${c.x}" y="${c.y}" width="${CELL}" height="${CELL}" fill="${col}"/>`;
+  });
+  // hair tufts
+  const hair = `
+    <g stroke="#2a2030" stroke-width="2.5" stroke-linejoin="round">
+      <path d="M ${tc.x-22} ${tc.y-15} L ${tc.x-22} ${tc.y-32} L ${tc.x-14} ${tc.y-15} Z" fill="#ec3d3d"/>
+      <path d="M ${tc.x-10} ${tc.y-15} L ${tc.x-10} ${tc.y-36} L ${tc.x-2} ${tc.y-15} Z" fill="#f59c2c"/>
+      <path d="M ${tc.x+2} ${tc.y-15} L ${tc.x+2} ${tc.y-38} L ${tc.x+10} ${tc.y-15} Z" fill="#fcd722"/>
+      <path d="M ${tc.x+12} ${tc.y-15} L ${tc.x+12} ${tc.y-32} L ${tc.x+20} ${tc.y-15} Z" fill="#3eb345"/>
+    </g>
+  `;
+  return {
+    behind: stripes + armsAndLegs(box, "#3a2876") + hair,
+    face: `
+      <ellipse cx="${tc.x-9}" cy="${tc.y-2}" rx="6" ry="7" fill="white" stroke="#2a2030" stroke-width="2"/>
+      <ellipse cx="${tc.x+9}" cy="${tc.y-2}" rx="6" ry="7" fill="white" stroke="#2a2030" stroke-width="2"/>
+      <circle cx="${tc.x-8}" cy="${tc.y-1}" r="3" fill="#2a2030"/>
+      <circle cx="${tc.x+10}" cy="${tc.y-1}" r="3" fill="#2a2030"/>
+      <circle cx="${tc.x-7}" cy="${tc.y-3}" r="1.2" fill="white"/>
+      <circle cx="${tc.x+11}" cy="${tc.y-3}" r="1.2" fill="white"/>
+      <path d="M ${tc.x-9} ${tc.y+14} Q ${tc.x} ${tc.y+22} ${tc.x+9} ${tc.y+14}" stroke="#2a2030" stroke-width="2.8" fill="#2a2030" stroke-linecap="round"/>
+    `
+  };
+}
+
+/* ---- 8: pink, octopus tentacles, big lashy eyes ---- */
+function eight(box){
+  // tentacles wrap around the body
+  const lx = box.x;
+  const rx = box.x + box.w;
+  const by = box.y + box.h;
+  const tc = { x: box.x + box.w/2, y: box.y + CELL/2 };
+  const tentacles = `
+    <g stroke="#8a1a5e" stroke-width="3" fill="#e23ea0" stroke-linejoin="round" stroke-linecap="round">
+      <path d="M ${lx} ${box.y+30}  q -22 8 -28 30 q -3 14 8 16 q 12 -2 12 -18"/>
+      <path d="M ${lx} ${box.y+box.h*0.6} q -28 0 -30 22 q 0 12 12 12 q 8 -2 14 -16"/>
+      <path d="M ${lx+10} ${by} q -18 14 -22 28 q 0 12 12 10 q 10 -4 14 -22"/>
+      <path d="M ${rx} ${box.y+30} q 22 8 28 30 q 3 14 -8 16 q -12 -2 -12 -18"/>
+      <path d="M ${rx} ${box.y+box.h*0.6} q 28 0 30 22 q 0 12 -12 12 q -8 -2 -14 -16"/>
+      <path d="M ${rx-10} ${by} q 18 14 22 28 q 0 12 -12 10 q -10 -4 -14 -22"/>
+    </g>
+  `;
+  return {
+    behind: tentacles,
+    face: `
+      <ellipse cx="${tc.x-15}" cy="${tc.y+2}" rx="10" ry="7" fill="white" stroke="#2a2030" stroke-width="2.5"/>
+      <ellipse cx="${tc.x+15}" cy="${tc.y+2}" rx="10" ry="7" fill="white" stroke="#2a2030" stroke-width="2.5"/>
+      <ellipse cx="${tc.x-13}" cy="${tc.y+2}" rx="3.5" ry="4" fill="#2a2030"/>
+      <ellipse cx="${tc.x+17}" cy="${tc.y+2}" rx="3.5" ry="4" fill="#2a2030"/>
+      <g stroke="#2a2030" stroke-width="2.5" stroke-linecap="round">
+        <line x1="${tc.x-22}" y1="${tc.y-7}" x2="${tc.x-26}" y2="${tc.y-12}"/>
+        <line x1="${tc.x-15}" y1="${tc.y-9}" x2="${tc.x-15}" y2="${tc.y-16}"/>
+        <line x1="${tc.x-7}" y1="${tc.y-7}" x2="${tc.x-3}" y2="${tc.y-12}"/>
+        <line x1="${tc.x+22}" y1="${tc.y-7}" x2="${tc.x+26}" y2="${tc.y-12}"/>
+        <line x1="${tc.x+15}" y1="${tc.y-9}" x2="${tc.x+15}" y2="${tc.y-16}"/>
+        <line x1="${tc.x+7}" y1="${tc.y-7}" x2="${tc.x+3}" y2="${tc.y-12}"/>
+      </g>
+      <path d="M ${tc.x-12} ${tc.y+18} Q ${tc.x} ${tc.y+26} ${tc.x+12} ${tc.y+18}" stroke="#2a2030" stroke-width="2.8" fill="#ff8fa3" stroke-linecap="round"/>
+    `
+  };
+}
+
+/* ---- 9: 3x3 grey, thoughtful eyebrows, smile ---- */
+function nine(box){
+  const topY = Math.min(...box.cells.map(c=>c.y));
+  const topRow = box.cells.filter(c=>c.y===topY);
+  const minX = Math.min(...topRow.map(c=>c.x));
+  const maxX = Math.max(...topRow.map(c=>c.x)) + CELL;
+  const fcx = (minX+maxX)/2;
+  const fcy = topY + CELL/2;
+  // smile in middle row
+  const my = topY + CELL + CELL/2;
+  return {
+    behind: armsAndLegs(box, "#555c66"),
+    face: `
+      <!-- eyebrows -->
+      <path d="M ${fcx-26} ${fcy-14} q 6 -8 14 -2" stroke="#2a2030" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <path d="M ${fcx+26} ${fcy-14} q -6 -8 -14 -2" stroke="#2a2030" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+      <ellipse cx="${fcx-15}" cy="${fcy}" rx="9" ry="11" fill="white" stroke="#2a2030" stroke-width="2.5"/>
+      <ellipse cx="${fcx+15}" cy="${fcy}" rx="9" ry="11" fill="white" stroke="#2a2030" stroke-width="2.5"/>
+      <circle cx="${fcx-13}" cy="${fcy+1}" r="4" fill="#2a2030"/>
+      <circle cx="${fcx+17}" cy="${fcy+1}" r="4" fill="#2a2030"/>
+      <circle cx="${fcx-12}" cy="${fcy-1}" r="1.4" fill="white"/>
+      <circle cx="${fcx+18}" cy="${fcy-1}" r="1.4" fill="white"/>
+      <path d="M ${fcx-16} ${my} Q ${fcx} ${my+10} ${fcx+16} ${my}" stroke="#2a2030" stroke-width="3" fill="none" stroke-linecap="round"/>
+    `
+  };
+}
+
+/* ---- 10: red outline white body 1x10 vertical, star eyes, jazz hands ---- */
+function ten(box){
+  // override: body cells are white, outlined red
+  const sortedCells = [...box.cells].sort((a,b)=>a.y-b.y);
+  let body = '';
+  for(const c of sortedCells){
+    body += `<rect x="${c.x}" y="${c.y}" width="${CELL}" height="${CELL}" fill="white" stroke="#ec3d3d" stroke-width="3"/>`;
+  }
+  // top cell gets a solid red cap
+  if(sortedCells[0]){
+    const c = sortedCells[0];
+    body += `<rect x="${c.x}" y="${c.y}" width="${CELL}" height="${CELL}" fill="#ec3d3d" stroke="#2a2030" stroke-width="3"/>`;
+  }
+  // face on second cell from top so it's on the white part right under the cap
+  const faceCell = sortedCells[1] || sortedCells[0];
+  const fcx = faceCell.x + CELL/2;
+  const fcy = faceCell.y + CELL/2;
+  // jazz hand stars at sides
+  const lh = drawStar(box.x - 18, fcy + 4, 11, "#ec3d3d", "#2a2030");
+  const rh = drawStar(box.x + box.w + 18, fcy + 4, 11, "#ec3d3d", "#2a2030");
+  return {
+    behind: `
+      ${legs(box, "#a82020")}
+      <path d="M ${box.x} ${fcy} q -14 0 -18 6" stroke="#2a2030" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M ${box.x+box.w} ${fcy} q 14 0 18 6" stroke="#2a2030" stroke-width="3" fill="none" stroke-linecap="round"/>
+      ${lh} ${rh}
+    `,
+    front: body, // white body drawn over default red
+    face: `
+      ${drawStar(fcx-12, fcy-2, 8, "#ec3d3d", "#2a2030")}
+      ${drawStar(fcx+12, fcy-2, 8, "#ec3d3d", "#2a2030")}
+      <circle cx="${fcx-12}" cy="${fcy-2}" r="2.5" fill="#2a2030"/>
+      <circle cx="${fcx+12}" cy="${fcy-2}" r="2.5" fill="#2a2030"/>
+      <path d="M ${fcx-9} ${fcy+12} Q ${fcx} ${fcy+20} ${fcx+9} ${fcy+12}" stroke="#2a2030" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+    `
+  };
+}
+
+/* ---- generic for n>10: tall tower, basic happy face ---- */
+function generic(n, box){
+  const tc = topCenter(box);
+  return {
+    behind: armsAndLegs(box, palette(n).deep),
+    face: `
+      <ellipse cx="${tc.x-9}" cy="${tc.y-2}" rx="6" ry="7" fill="white" stroke="#2a2030" stroke-width="2"/>
+      <ellipse cx="${tc.x+9}" cy="${tc.y-2}" rx="6" ry="7" fill="white" stroke="#2a2030" stroke-width="2"/>
+      <circle cx="${tc.x-8}" cy="${tc.y-1}" r="3" fill="#2a2030"/>
+      <circle cx="${tc.x+10}" cy="${tc.y-1}" r="3" fill="#2a2030"/>
+      <circle cx="${tc.x-7}" cy="${tc.y-3}" r="1.2" fill="white"/>
+      <circle cx="${tc.x+11}" cy="${tc.y-3}" r="1.2" fill="white"/>
+      <path d="M ${tc.x-10} ${tc.y+14} Q ${tc.x} ${tc.y+22} ${tc.x+10} ${tc.y+14}" stroke="#2a2030" stroke-width="2.8" fill="none" stroke-linecap="round"/>
+    `
+  };
+}
+
+/* ---- helpers ---- */
+function topCenter(box){
+  const topY = Math.min(...box.cells.map(c=>c.y));
+  const topRow = box.cells.filter(c=>c.y===topY);
+  const minX = Math.min(...topRow.map(c=>c.x));
+  const maxX = Math.max(...topRow.map(c=>c.x)) + CELL;
+  return { x: (minX+maxX)/2, y: topY + CELL/2 };
+}
+
+function armsAndLegs(box, color){
+  return arms(box, color) + legs(box, color);
+}
+
+function arms(box, color){
+  // arms reach out from the side of the upper-middle of body
+  const ay = box.y + Math.min(box.h*0.35, CELL*0.5);
+  return `
+    <g>
+      <path d="M ${box.x+2} ${ay} q -16 4 -16 22" stroke="#2a2030" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="${box.x-14}" cy="${ay+22}" r="7" fill="${color}" stroke="#2a2030" stroke-width="2.5"/>
+      <path d="M ${box.x+box.w-2} ${ay} q 16 4 16 22" stroke="#2a2030" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <circle cx="${box.x+box.w+14}" cy="${ay+22}" r="7" fill="${color}" stroke="#2a2030" stroke-width="2.5"/>
+    </g>
+  `;
+}
+
+function legs(box, color){
+  const by = box.y + box.h;
+  const cx1 = box.x + box.w*0.32;
+  const cx2 = box.x + box.w*0.68;
+  return `
+    <g>
+      <path d="M ${cx1} ${by} q 0 14 -4 22" stroke="#2a2030" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <ellipse cx="${cx1-4}" cy="${by+24}" rx="9" ry="5" fill="${color}" stroke="#2a2030" stroke-width="2.5"/>
+      <path d="M ${cx2} ${by} q 0 14 4 22" stroke="#2a2030" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <ellipse cx="${cx2+4}" cy="${by+24}" rx="9" ry="5" fill="${color}" stroke="#2a2030" stroke-width="2.5"/>
+    </g>
+  `;
+}
+
+function drawStar(cx, cy, r, fill, stroke){
+  // 5-point star
+  const pts = [];
+  for(let i=0;i<10;i++){
+    const a = -Math.PI/2 + i * Math.PI/5;
+    const rr = i%2===0 ? r : r*0.45;
+    pts.push((cx + Math.cos(a)*rr).toFixed(1) + "," + (cy + Math.sin(a)*rr).toFixed(1));
+  }
+  return `<polygon points="${pts.join(' ')}" fill="${fill}" stroke="${stroke}" stroke-width="2.5" stroke-linejoin="round"/>`;
+}
+
+/* ===================================================================
+   SHAPE OBJECTS
+=================================================================== */
+function spawnOne(x, y){
+  const stageRect = stage.getBoundingClientRect();
+  if(x === undefined){
+    x = stageRect.width/2 - CELL/2 + (Math.random()*120 - 60);
+    y = stageRect.height - 200 - CELL + (Math.random()*40 - 20);
+  } else { x -= CELL/2; y -= CELL/2; }
+
+  const shape = {
+    id: nextShapeId++,
+    cells: [{ gx:0, gy:0 }],
+    el: null,
+    x, y,
+    vx:(Math.random()*2-1)*0.4,
+    vy:-1.2 - Math.random(),
+    rot:(Math.random()*8 - 4),
+    rotV:(Math.random()*0.4 - 0.2),
+    dragging:false,
+    born: performance.now(),
+    _bbox:null
+  };
+
+  const el = document.createElement('div');
+  el.className = 'shape appear';
+  shape.el = el;
+  rebuildShapeDOM(shape);
+  stage.appendChild(el);
+
+  el.addEventListener('pointerdown', (e) => onPointerDown(e, shape));
+
+  shapes.push(shape);
+  applyShapeTransform(shape);
+  updateStats();
+}
+
+function rebuildShapeDOM(shape){
+  const built = buildShapeSVG(shape.cells, shape);
+  // bounding box in *grid* coordinates
+  let minGx = Infinity, minGy = Infinity, maxGx = -Infinity, maxGy = -Infinity;
+  for(const c of shape.cells){
+    if(c.gx < minGx) minGx = c.gx;
+    if(c.gy < minGy) minGy = c.gy;
+    if(c.gx > maxGx) maxGx = c.gx;
+    if(c.gy > maxGy) maxGy = c.gy;
+  }
+  shape._bbox = {
+    minGx, minGy, maxGx, maxGy,
+    cols: maxGx-minGx+1, rows: maxGy-minGy+1,
+    w: (maxGx-minGx+1)*CELL,
+    h: (maxGy-minGy+1)*CELL,
+    pad: built.pad
+  };
+  // Wrapper sized to padded SVG; but anchor is at the top-left of the *body* (not the pad).
+  shape.el.style.width = built.width + 'px';
+  shape.el.style.height = built.height + 'px';
+
+  // number tag (small)
+  const n = shape.cells.length;
+  shape.el.innerHTML = built.svg + `<div class="number-tag" style="
+    position:absolute;
+    top:-2px; left:${built.pad - 2}px;
+    font-size:18px;
+  ">${n}</div>`;
+}
+
+/* ---------- Apply transform: place the shape so its body top-left is at (shape.x, shape.y) ----------
+   The SVG has padding, so we offset by -pad so that .x corresponds to body top-left.
+   Rotation is around the center of the body bbox. */
+function applyShapeTransform(shape){
+  const pad = shape._bbox.pad;
+  const bw = shape._bbox.w;
+  const bh = shape._bbox.h;
+  // We want the body center to be at (shape.x + bw/2, shape.y + bh/2)
+  // The svg's top-left lies at (-pad, -pad) relative to body top-left
+  shape.el.style.transformOrigin = `${pad + bw/2}px ${pad + bh/2}px`;
+  shape.el.style.transform = `translate(${shape.x - pad}px, ${shape.y - pad}px) rotate(${shape.rot}deg)`;
+}
+
+/* ===================================================================
+   POINTER / DRAG
+=================================================================== */
+function onPointerDown(e, shape){
+  e.preventDefault();
+  e.stopPropagation();
+
+  shape.rot = 0; shape.rotV = 0;
+  shape.dragging = true;
+  shape.el.classList.add('dragging');
+  try{ shape.el.setPointerCapture(e.pointerId);}catch(_){}
+
+  const stageRect = stage.getBoundingClientRect();
+  shape.dragOffX = (e.clientX - stageRect.left) - shape.x;
+  shape.dragOffY = (e.clientY - stageRect.top) - shape.y;
+  shape.lastPx = e.clientX; shape.lastPy = e.clientY;
+  shape.lastT = performance.now();
+  shape.vx = 0; shape.vy = 0;
+
+  dragMap.set(e.pointerId, shape);
+
+  const onMove = (ev) => onPointerMove(ev);
+  const onUp = (ev) => onPointerUp(ev, onMove, onUp);
+  window.addEventListener('pointermove', onMove);
+  window.addEventListener('pointerup', onUp);
+  window.addEventListener('pointercancel', onUp);
+  shape._dragHandlers = { onMove, onUp };
+
+  applyShapeTransform(shape);
+}
+
+function onPointerMove(e){
+  const shape = dragMap.get(e.pointerId);
+  if(!shape) return;
+  const stageRect = stage.getBoundingClientRect();
+  const px = e.clientX - stageRect.left;
+  const py = e.clientY - stageRect.top;
+  shape.x = px - shape.dragOffX;
+  shape.y = py - shape.dragOffY;
+
+  const now = performance.now();
+  const dt = Math.max(now - shape.lastT, 1);
+  shape.vx = (e.clientX - shape.lastPx) / dt * 16;
+  shape.vy = (e.clientY - shape.lastPy) / dt * 16;
+  shape.lastPx = e.clientX; shape.lastPy = e.clientY; shape.lastT = now;
+
+  applyShapeTransform(shape);
+  showSnapPreview(shape);
+}
+
+function onPointerUp(e, onMove, onUp){
+  const shape = dragMap.get(e.pointerId);
+  window.removeEventListener('pointermove', onMove);
+  window.removeEventListener('pointerup', onUp);
+  window.removeEventListener('pointercancel', onUp);
+  if(!shape) return;
+
+  shape.dragging = false;
+  shape.el.classList.remove('dragging');
+  try{ shape.el.releasePointerCapture(e.pointerId);}catch(_){}
+  dragMap.delete(e.pointerId);
+
+  const snap = computeBestSnap(shape);
+  hideSnapPreview();
+  if(snap){
+    performSnap(shape, snap);
+  } else {
+    shape.vx = clamp(shape.vx, -20, 20);
+    shape.vy = clamp(shape.vy, -20, 20);
+  }
+}
+
+function clamp(v,a,b){return Math.max(a, Math.min(b,v));}
+
+/* ===================================================================
+   SNAP LOGIC — find a grid alignment between dragged shape and another.
+=================================================================== */
+function cellWorldCenter(shape, cell){
+  // body anchor (shape.x, shape.y) is top-left of body bbox at (minGx, minGy)
+  // So world position of cell c.gx, c.gy:
+  const lx = (cell.gx - shape._bbox.minGx) * CELL + CELL/2;
+  const ly = (cell.gy - shape._bbox.minGy) * CELL + CELL/2;
+  // rotation around center of bbox
+  const cx = shape._bbox.w/2, cy = shape._bbox.h/2;
+  const r = shape.rot * Math.PI/180;
+  const cos = Math.cos(r), sin = Math.sin(r);
+  const rx = (lx - cx)*cos - (ly - cy)*sin + cx;
+  const ry = (lx - cx)*sin + (ly - cy)*cos + cy;
+  return { x: shape.x + rx, y: shape.y + ry };
+}
+
+function computeBestSnap(dragShape){
+  let best = null; let bestScore = Infinity;
+  for(const dragCell of dragShape.cells){
+    const dragCenter = cellWorldCenter(dragShape, dragCell);
+    for(const other of shapes){
+      if(other === dragShape) continue;
+      for(const targetCell of other.cells){
+        const tCenter = cellWorldCenter(other, targetCell);
+        const sides = [
+          { dx:  CELL, dy: 0, dirGx: 1,  dirGy: 0 },
+          { dx: -CELL, dy: 0, dirGx:-1,  dirGy: 0 },
+          { dx: 0, dy:  CELL, dirGx: 0,  dirGy: 1 },
+          { dx: 0, dy: -CELL, dirGx: 0,  dirGy:-1 }
+        ];
+        for(const s of sides){
+          const desiredCenter = { x: tCenter.x + s.dx, y: tCenter.y + s.dy };
+          const dx = desiredCenter.x - dragCenter.x;
+          const dy = desiredCenter.y - dragCenter.y;
+          const dist = Math.hypot(dx, dy);
+          if(dist < SNAP_DIST && dist < bestScore){
+            const trial = trySnap(dragShape, dragCell, other, targetCell, s.dirGx, s.dirGy);
+            if(trial){
+              bestScore = dist;
+              best = trial;
+            }
+          }
+        }
+      }
+    }
+  }
+  return best;
+}
+
+function trySnap(dragShape, dragCell, hostShape, targetCell, dirGx, dirGy){
+  const targetGx = targetCell.gx + dirGx;
+  const targetGy = targetCell.gy + dirGy;
+  const offGx = targetGx - dragCell.gx;
+  const offGy = targetGy - dragCell.gy;
+  const newCells = dragShape.cells.map(c => ({ gx: c.gx + offGx, gy: c.gy + offGy }));
+  const hostKeys = new Set(hostShape.cells.map(c => c.gx + ',' + c.gy));
+  for(const nc of newCells){
+    if(hostKeys.has(nc.gx + ',' + nc.gy)) return null;
+  }
+  return { hostShape, dragShape, newCells };
+}
+
+function performSnap(dragShape, snap){
+  const host = snap.hostShape;
+  // Append new cells to host
+  for(const nc of snap.newCells) host.cells.push(nc);
+  // Remove drag shape
+  const idx = shapes.indexOf(dragShape);
+  if(idx>=0) shapes.splice(idx,1);
+  dragShape.el.remove();
+  // Stop motion + redraw host
+  host.vx = 0; host.vy = 0; host.rotV = 0; host.rot = 0;
+  rebuildShapeDOM(host);
+  applyShapeTransform(host);
+
+  // celebration
+  const ref = snap.newCells[snap.newCells.length-1];
+  const refCenter = cellWorldCenter(host, ref);
+  burst(refCenter.x, refCenter.y, palette(host.cells.length).color);
+  flashToast(`${palette(host.cells.length).name}!`);
+  updateStats();
+}
+
+/* ---------- Snap preview ghost ---------- */
+function showSnapPreview(dragShape){
+  const snap = computeBestSnap(dragShape);
+  if(!snap){ hideSnapPreview(); return; }
+  if(!snapGhost){
+    snapGhost = document.createElement('div');
+    snapGhost.className = 'snap-ghost';
+    stage.appendChild(snapGhost);
+  }
+  let minGx = Infinity, minGy = Infinity, maxGx = -Infinity, maxGy = -Infinity;
+  for(const c of snap.newCells){
+    if(c.gx < minGx) minGx = c.gx;
+    if(c.gy < minGy) minGy = c.gy;
+    if(c.gx > maxGx) maxGx = c.gx;
+    if(c.gy > maxGy) maxGy = c.gy;
+  }
+  // Reference: a host cell to anchor screen coords
+  const refHost = snap.hostShape.cells[0];
+  const refCenter = cellWorldCenter(snap.hostShape, refHost);
+  const refTL = { x: refCenter.x - CELL/2, y: refCenter.y - CELL/2 };
+  const dGx = minGx - refHost.gx;
+  const dGy = minGy - refHost.gy;
+  const left = refTL.x + dGx * CELL;
+  const top = refTL.y + dGy * CELL;
+  const w = (maxGx-minGx+1)*CELL;
+  const h = (maxGy-minGy+1)*CELL;
+  snapGhost.style.transform = `translate(${left}px, ${top}px)`;
+  snapGhost.style.width = w + 'px';
+  snapGhost.style.height = h + 'px';
+}
+function hideSnapPreview(){
+  if(snapGhost){ snapGhost.remove(); snapGhost = null;}
+}
+
+/* ===================================================================
+   PHYSICS LOOP
+=================================================================== */
+let lastFrame = performance.now();
+function tick(){
+  const now = performance.now();
+  const dt = Math.min((now - lastFrame)/16.67, 2.5);
+  lastFrame = now;
+
+  const stageRect = stage.getBoundingClientRect();
+  const W = stageRect.width;
+  const H = stageRect.height;
+  const TOP = 64;
+  const BOTTOM = H - 90;
+
+  for(const s of shapes){
+    if(s.dragging) continue;
+    s.vy += 0.018 * dt;
+    s.vx *= Math.pow(0.985, dt);
+    s.vy *= Math.pow(0.985, dt);
+    s.x += s.vx * dt;
+    s.y += s.vy * dt;
+    s.rot += s.rotV * dt;
+    s.rotV *= Math.pow(0.96, dt);
+
+    const bw = s._bbox.w, bh = s._bbox.h;
+    if(s.x < 0){ s.x = 0; s.vx = Math.abs(s.vx)*0.6;}
+    if(s.x + bw > W){ s.x = W - bw; s.vx = -Math.abs(s.vx)*0.6;}
+    if(s.y < TOP){ s.y = TOP; s.vy = Math.abs(s.vy)*0.4;}
+    if(s.y + bh > BOTTOM){ s.y = BOTTOM - bh; s.vy = -Math.abs(s.vy)*0.4; s.vx *= 0.9; s.rotV *= 0.7;}
+
+    applyShapeTransform(s);
+  }
+
+  for(let i=0;i<shapes.length;i++){
+    for(let j=i+1;j<shapes.length;j++){
+      separateShapes(shapes[i], shapes[j]);
+    }
+  }
+
+  requestAnimationFrame(tick);
+}
+
+function separateShapes(a, b){
+  const ax = a.x, ay = a.y, aw = a._bbox.w, ah = a._bbox.h;
+  const bx = b.x, by = b.y, bw = b._bbox.w, bh = b._bbox.h;
+  if(ax+aw < bx || bx+bw < ax) return;
+  if(ay+ah < by || by+bh < ay) return;
+  const overlapX = Math.min(ax+aw, bx+bw) - Math.max(ax, bx);
+  const overlapY = Math.min(ay+ah, by+bh) - Math.max(ay, by);
+  if(overlapX < overlapY){
+    const push = overlapX/2;
+    if(ax < bx){ if(!a.dragging) a.x -= push; if(!b.dragging) b.x += push; }
+    else       { if(!a.dragging) a.x += push; if(!b.dragging) b.x -= push; }
+    if(!a.dragging) a.vx *= 0.5;
+    if(!b.dragging) b.vx *= 0.5;
+  } else {
+    const push = overlapY/2;
+    if(ay < by){ if(!a.dragging) a.y -= push; if(!b.dragging) b.y += push; }
+    else       { if(!a.dragging) a.y += push; if(!b.dragging) b.y -= push; }
+    if(!a.dragging) a.vy *= 0.5;
+    if(!b.dragging) b.vy *= 0.5;
+  }
+}
+
+/* ===================================================================
+   BURSTS, CONTROLS
+=================================================================== */
+function burst(cx, cy, color){
+  for(let i=0;i<14;i++){
+    const p = document.createElement('div');
+    p.style.position='absolute';
+    p.style.left = cx+'px'; p.style.top = cy+'px';
+    p.style.width = '8px'; p.style.height='8px';
+    p.style.background = color;
+    p.style.border = '2px solid #2a2030';
+    p.style.borderRadius = '50%';
+    p.style.zIndex = 25;
+    p.style.pointerEvents='none';
+    stage.appendChild(p);
+    const ang = Math.random()*Math.PI*2;
+    const sp = 50 + Math.random()*70;
+    const dx = Math.cos(ang)*sp;
+    const dy = Math.sin(ang)*sp - 20;
+    p.animate([
+      { transform:`translate(-4px,-4px) scale(1)`, opacity:1 },
+      { transform:`translate(${dx-4}px, ${dy-4}px) scale(0.4)`, opacity:0 }
+    ], { duration: 700 + Math.random()*200, easing:'cubic-bezier(.2,.7,.4,1)' });
+    setTimeout(()=>p.remove(), 950);
+  }
+}
+
+function shakeWorld(){
+  for(const s of shapes){
+    s.vx += (Math.random()-0.5)*16;
+    s.vy += (Math.random()-0.5)*16;
+    s.rotV += (Math.random()-0.5)*0.6;
+  }
+  flashToast("✨ wheee!");
+}
+
+function breakAll(){
+  const toBreak = shapes.filter(s => s.cells.length > 1);
+  for(const s of toBreak){
+    // Capture each cell's world position
+    const pieces = [];
+    for(const c of s.cells){
+      const center = cellWorldCenter(s, c);
+      pieces.push({ x: center.x - CELL/2, y: center.y - CELL/2 });
+    }
+    // remove original
+    const idx = shapes.indexOf(s);
+    if(idx>=0) shapes.splice(idx,1);
+    s.el.remove();
+    // spawn each piece as a "1"
+    for(const piece of pieces){
+      spawnAt(piece.x + CELL/2, piece.y + CELL/2);
+    }
+  }
+  if(toBreak.length) flashToast("✂️ scattered!");
+  updateStats();
+}
+
+function spawnAt(x, y){
+  // helper used by breakAll: creates a 1 at world center (x,y)
+  spawnOne(x, y);
+}
+
+function clearWorld(){
+  for(const s of shapes) s.el.remove();
+  shapes.length = 0;
+  updateStats();
+  flashToast("🧹 all clean!");
+}
+
+function updateStats(){
+  let total = 0;
+  for(const s of shapes) total += s.cells.length;
+  popEl.textContent = total;
+  grpEl.textContent = shapes.filter(s => s.cells.length > 1).length;
+}
+
+let toastTimer;
+function flashToast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>toastEl.classList.remove('show'), 1600);
+}
+
+/* ===================================================================
+   INTRO + START
+=================================================================== */
+document.getElementById('startBtn').addEventListener('click', () => {
+  document.getElementById('intro').classList.add('hidden');
+  setTimeout(()=>{
+    spawnOne();
+    setTimeout(()=>spawnOne(), 220);
+    setTimeout(()=>spawnOne(), 440);
+    flashToast("stick Ones together to make bigger numbers!");
+  }, 250);
+});
+
+requestAnimationFrame(tick);
+
+window.addEventListener('resize', () => {
+  const r = stage.getBoundingClientRect();
+  for(const s of shapes){
+    if(s.x + s._bbox.w > r.width) s.x = r.width - s._bbox.w - 4;
+    if(s.y + s._bbox.h > r.height - 90) s.y = r.height - 90 - s._bbox.h - 4;
+    applyShapeTransform(s);
+  }
+});
+</script>
+</body>
+</html>
