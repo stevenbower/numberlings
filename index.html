@@ -242,6 +242,57 @@
     40%{ filter: drop-shadow(0 4px 0 #2a2030) drop-shadow(0 0 18px #ffd166);}
     100%{ filter: none;}
   }
+
+  /* === Black Hole === */
+  body.blackhole-mode{
+    cursor: crosshair;
+  }
+  body.blackhole-mode .shape, body.blackhole-mode .fruit{
+    cursor: crosshair;
+  }
+  body.blackhole-mode .seed-btn,
+  body.blackhole-mode #intro,
+  body.blackhole-mode .stat{
+    cursor: auto;
+  }
+
+  .black-hole{
+    position:absolute;
+    z-index: 9; /* below shapes (10), above ground (6) — blocks orbit visibly in front */
+    pointer-events: none;
+    will-change: transform;
+    width: 0; height: 0;
+  }
+  .black-hole svg{ display:block; overflow:visible; position:absolute; left:-100px; top:-100px;}
+
+  @keyframes bh-spin{
+    from{ transform: rotate(0deg);}
+    to{ transform: rotate(360deg);}
+  }
+  @keyframes bh-spin-rev{
+    from{ transform: rotate(0deg);}
+    to{ transform: rotate(-360deg);}
+  }
+  .bh-disk-1{ animation: bh-spin 2.5s linear infinite; transform-origin: center;}
+  .bh-disk-2{ animation: bh-spin-rev 4s linear infinite; transform-origin: center;}
+  .bh-disk-3{ animation: bh-spin 6s linear infinite; transform-origin: center;}
+
+  /* Black hole mode hint */
+  #bh-hint{
+    position:fixed; top:74px; left:50%; transform:translateX(-50%);
+    z-index:55;
+    background: #5a3aaa;
+    color: #fff;
+    border: 3px solid var(--ink); border-radius: 16px;
+    box-shadow: 0 3px 0 var(--ink);
+    padding: 8px 16px;
+    font-family:'Baloo 2', sans-serif; font-weight:700; font-size:13px;
+    pointer-events:none;
+    opacity:0;
+    transition: opacity .25s, transform .25s;
+  }
+  #bh-hint.show{ opacity:1; transform:translateX(-50%) translateY(0);}
+
   body.sword-mode{
     cursor: crosshair;
   }
@@ -533,6 +584,9 @@
 <!-- Sword mode hint -->
 <div id="sword-hint">⚔️ Swipe to slice! Tap sword to exit.</div>
 
+<!-- Black hole mode hint -->
+<div id="bh-hint">🌀 Tap to place a black hole!</div>
+
 <!-- Slice overlay (sword mode trail) -->
 <div id="slice-overlay" aria-hidden="true">
   <svg id="slice-svg" preserveAspectRatio="none"></svg>
@@ -751,6 +805,11 @@ fruitBtn.className = 'icon-btn fruit-btn'; fruitBtn.textContent = "🍎"; fruitB
 fruitBtn.addEventListener('click', dropRandomFruit);
 dockInner.appendChild(fruitBtn);
 
+const blackHoleBtn = document.createElement('button');
+blackHoleBtn.className = 'icon-btn blackhole-btn'; blackHoleBtn.textContent = "🌀"; blackHoleBtn.title = "Black hole — tap to place!";
+blackHoleBtn.addEventListener('click', toggleBlackHoleMode);
+dockInner.appendChild(blackHoleBtn);
+
 const breakBtn = document.createElement('button');
 breakBtn.className = 'icon-btn'; breakBtn.textContent = "✂️"; breakBtn.title = "Break apart";
 breakBtn.addEventListener('click', breakAll);
@@ -783,6 +842,8 @@ function enterSwordMode(){
   swordHint.classList.add('show');
   // close any open menu
   if(typeof closeMenu === 'function') closeMenu();
+  // exit BH mode if active
+  if(typeof blackHoleMode !== 'undefined' && blackHoleMode) exitBlackHoleMode();
   flashToast("⚔️ sword mode!");
   // sword overlay receives pointer events on stage area only
   sliceSvg.parentElement.style.pointerEvents = 'auto';
@@ -1397,6 +1458,294 @@ function canonicalLayoutForN(n){
     layout.push([i % cols, Math.floor(i/cols)]);
   }
   return layout;
+}
+
+/* ===================================================================
+   BLACK HOLE — gravitational physics with stable orbits
+=================================================================== */
+let blackHoleMode = false;
+const blackHoles = []; // {x, y, el, born, lifespan, mass, eventHorizon, captured}
+const bhHint = document.getElementById('bh-hint');
+
+const BH_LIFESPAN = 20000;     // 20 seconds
+const BH_MASS = 60000;         // gravitational mass constant (tuned for ~mid-size orbits)
+const BH_EVENT_HORIZON = 60;   // px — minimum distance, blocks bounce off this radius
+const BH_VISUAL_RADIUS = 32;   // visible black hole core (smaller than horizon — feels right)
+const BH_INFLUENCE = 600;      // px max gravitational reach
+
+function toggleBlackHoleMode(){
+  if(blackHoleMode) exitBlackHoleMode();
+  else enterBlackHoleMode();
+}
+
+function enterBlackHoleMode(){
+  blackHoleMode = true;
+  document.body.classList.add('blackhole-mode');
+  blackHoleBtn.classList.add('active');
+  bhHint.classList.add('show');
+  // Cancel sword mode if active
+  if(swordMode) exitSwordMode();
+  // Close any menu
+  if(typeof closeMenu === 'function') closeMenu();
+  flashToast("🌀 tap anywhere to place!");
+}
+
+function exitBlackHoleMode(){
+  blackHoleMode = false;
+  document.body.classList.remove('blackhole-mode');
+  blackHoleBtn.classList.remove('active');
+  bhHint.classList.remove('show');
+}
+
+// Listen for tap to place
+window.addEventListener('pointerdown', (e) => {
+  if(!blackHoleMode) return;
+  if(isUIElement(e.target)) return;
+  e.preventDefault();
+  e.stopPropagation();
+  const stageRect = stage.getBoundingClientRect();
+  placeBlackHole(e.clientX - stageRect.left, e.clientY - stageRect.top);
+  exitBlackHoleMode();
+}, true);
+
+// Escape exits black hole mode
+window.addEventListener('keydown', (e) => {
+  if(e.key === 'Escape' && blackHoleMode) exitBlackHoleMode();
+});
+
+function placeBlackHole(x, y){
+  const el = document.createElement('div');
+  el.className = 'black-hole';
+  el.innerHTML = blackHoleSVG();
+  el.style.transform = `translate(${x}px, ${y}px)`;
+  // Scale-in birth animation on the inner SVG (avoids interfering with wrapper transform)
+  const svgEl = el.querySelector('svg');
+  if(svgEl){
+    svgEl.style.animation = 'bh-birth-scale .55s cubic-bezier(.2,1.5,.5,1) backwards';
+  }
+  ensureBhBirthKeyframes();
+  stage.appendChild(el);
+
+  const bh = {
+    el, x, y,
+    born: performance.now(),
+    lifespan: BH_LIFESPAN,
+    mass: BH_MASS,
+    eventHorizon: BH_EVENT_HORIZON,
+    influence: BH_INFLUENCE,
+    dying: false
+  };
+  blackHoles.push(bh);
+
+  // Give nearby blocks a tangential nudge so they actually orbit instead of falling straight in
+  for(const s of shapes){
+    const sCx = s.x + s._bbox.w/2;
+    const sCy = s.y + s._bbox.h/2;
+    const dx = sCx - x, dy = sCy - y;
+    const dist = Math.hypot(dx, dy);
+    if(dist > BH_INFLUENCE) continue;
+    if(dist < 10) continue;
+    // tangent direction (perpendicular to radius, counter-clockwise)
+    const tx = -dy / dist;
+    const ty = dx / dist;
+    // nudge magnitude — needs to be enough to actually cause orbit, not just slow fall
+    // For a circular orbit at radius r: v = sqrt(G*M/r). Use a fraction of that.
+    const orbitalV = Math.sqrt(BH_MASS / Math.max(dist, BH_EVENT_HORIZON));
+    const nudgeStrength = orbitalV * (0.4 + Math.random()*0.5);
+    s.vx += tx * nudgeStrength;
+    s.vy += ty * nudgeStrength;
+  }
+  // Same for fruits
+  for(const f of fruits){
+    const fCx = f.x + 25;
+    const fCy = f.y + 25;
+    const dx = fCx - x, dy = fCy - y;
+    const dist = Math.hypot(dx, dy);
+    if(dist > BH_INFLUENCE) continue;
+    if(dist < 10) continue;
+    const tx = -dy / dist;
+    const ty = dx / dist;
+    const orbitalV = Math.sqrt(BH_MASS / Math.max(dist, BH_EVENT_HORIZON));
+    const nudgeStrength = orbitalV * (0.4 + Math.random()*0.5);
+    f.vx += tx * nudgeStrength;
+    f.vy += ty * nudgeStrength;
+  }
+}
+
+function ensureBhBirthKeyframes(){
+  if(document.getElementById('bh-birth-style')) return;
+  const style = document.createElement('style');
+  style.id = 'bh-birth-style';
+  style.textContent = `
+    @keyframes bh-birth-scale{
+      0%{ opacity: 0; transform: scale(0);}
+      60%{ opacity: 1; transform: scale(1.15);}
+      100%{ opacity: 1; transform: scale(1);}
+    }
+  `;
+  document.head.appendChild(style);
+}
+
+function blackHoleSVG(){
+  // SVG is 200x200, centered via parent CSS (position:absolute, left/top -100px)
+  return `
+    <svg viewBox="-100 -100 200 200" width="200" height="200" style="overflow:visible; display:block;">
+      <defs>
+        <radialGradient id="bh-core" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#000" stop-opacity="1"/>
+          <stop offset="70%" stop-color="#000" stop-opacity="1"/>
+          <stop offset="90%" stop-color="#1a0838" stop-opacity="0.8"/>
+          <stop offset="100%" stop-color="#1a0838" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="bh-disk-grad" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stop-color="#ffd166" stop-opacity="0"/>
+          <stop offset="40%" stop-color="#ff6b9d" stop-opacity="0"/>
+          <stop offset="55%" stop-color="#ffd166" stop-opacity="0.9"/>
+          <stop offset="70%" stop-color="#ff6b9d" stop-opacity="0.7"/>
+          <stop offset="100%" stop-color="#5a3aaa" stop-opacity="0"/>
+        </radialGradient>
+      </defs>
+      <!-- outer warping glow -->
+      <circle cx="0" cy="0" r="80" fill="url(#bh-disk-grad)" opacity="0.6" class="bh-disk-3"/>
+      <!-- accretion disk rings -->
+      <ellipse cx="0" cy="0" rx="68" ry="18" fill="none" stroke="#ffd166" stroke-width="3" opacity="0.85" class="bh-disk-1"/>
+      <ellipse cx="0" cy="0" rx="58" ry="14" fill="none" stroke="#ff6b9d" stroke-width="2.5" opacity="0.8" class="bh-disk-2"/>
+      <ellipse cx="0" cy="0" rx="48" ry="10" fill="none" stroke="#fff" stroke-width="2" opacity="0.7" class="bh-disk-1"/>
+      <!-- bright halo -->
+      <circle cx="0" cy="0" r="38" fill="none" stroke="#fff" stroke-width="2" opacity="0.9"/>
+      <circle cx="0" cy="0" r="40" fill="none" stroke="#ffd166" stroke-width="3" opacity="0.6"/>
+      <!-- pure black core -->
+      <circle cx="0" cy="0" r="32" fill="url(#bh-core)"/>
+      <circle cx="0" cy="0" r="28" fill="#000"/>
+      <!-- swirl/spaghetti particles -->
+      <g class="bh-disk-1" opacity="0.7">
+        <circle cx="50" cy="0" r="2" fill="#fff"/>
+        <circle cx="-45" cy="8" r="1.5" fill="#ffd166"/>
+        <circle cx="40" cy="-15" r="1.5" fill="#ff6b9d"/>
+        <circle cx="-50" cy="-5" r="2" fill="#fff"/>
+      </g>
+    </svg>
+  `;
+}
+
+/* ---------- Black hole tick: apply gravity, manage lifespan ---------- */
+function tickBlackHoles(dt, now){
+  for(let i = blackHoles.length - 1; i >= 0; i--){
+    const bh = blackHoles[i];
+    const age = now - bh.born;
+    const remaining = bh.lifespan - age;
+
+    // Fade & shrink in last 2 seconds
+    if(remaining < 2000){
+      const t = Math.max(0, remaining / 2000); // 1 → 0
+      const scale = 0.4 + t * 0.6;
+      bh.el.style.transform = `translate(${bh.x}px, ${bh.y}px) scale(${scale})`;
+      bh.el.style.opacity = t;
+      // Mass also weakens as it dies
+      bh._massMul = t;
+    } else {
+      bh.el.style.transform = `translate(${bh.x}px, ${bh.y}px)`;
+      bh.el.style.opacity = '1';
+      bh._massMul = 1;
+    }
+
+    if(age >= bh.lifespan){
+      // remove
+      bh.el.remove();
+      blackHoles.splice(i, 1);
+      flashToast("🌀 dissipated...");
+    }
+  }
+}
+
+function applyBlackHoleGravity(s, dt){
+  for(const bh of blackHoles){
+    const sCx = s.x + s._bbox.w/2;
+    const sCy = s.y + s._bbox.h/2;
+    const dx = bh.x - sCx;
+    const dy = bh.y - sCy;
+    const distSq = dx*dx + dy*dy;
+    const dist = Math.sqrt(distSq);
+    if(dist > bh.influence) continue;
+    if(dist < 0.01) continue;
+
+    const massMul = bh._massMul == null ? 1 : bh._massMul;
+    // Gravitational acceleration: a = G*M / r²
+    // We treat bh.mass as G*M combined.
+    // Cap at some min distance to prevent extreme acceleration when very close
+    const effDist = Math.max(dist, bh.eventHorizon);
+    const accel = (bh.mass * massMul) / (effDist * effDist);
+
+    // Direction (unit vector toward black hole)
+    const ux = dx / dist;
+    const uy = dy / dist;
+
+    s.vx += ux * accel * dt;
+    s.vy += uy * accel * dt;
+
+    // Soft event horizon: if too close, push back out tangentially
+    if(dist < bh.eventHorizon){
+      // Push the shape back to the event horizon, preserving tangential velocity
+      const overlap = bh.eventHorizon - dist;
+      // Push along outward normal
+      s.x -= ux * overlap;
+      s.y -= uy * overlap;
+      // Decompose velocity into radial (toward bh) and tangential (perpendicular)
+      const vRadial = s.vx * ux + s.vy * uy; // scalar projection toward bh
+      // Reflect radial velocity outward (with energy loss to prevent infinite spiral)
+      if(vRadial > 0){ // moving toward bh
+        s.vx -= ux * vRadial * 1.6; // remove radial inward + add radial outward
+        s.vy -= uy * vRadial * 1.6;
+      }
+      // Mild tangential damping to prevent runaway slingshots
+      s.vx *= 0.98;
+      s.vy *= 0.98;
+    }
+  }
+}
+
+function applyBlackHoleGravityToFruit(f, dt){
+  for(const bh of blackHoles){
+    const fCx = f.x + 25;
+    const fCy = f.y + 25;
+    const dx = bh.x - fCx;
+    const dy = bh.y - fCy;
+    const distSq = dx*dx + dy*dy;
+    const dist = Math.sqrt(distSq);
+    if(dist > bh.influence) continue;
+    if(dist < 0.01) continue;
+
+    const massMul = bh._massMul == null ? 1 : bh._massMul;
+    const effDist = Math.max(dist, bh.eventHorizon);
+    const accel = (bh.mass * massMul) / (effDist * effDist);
+    const ux = dx / dist;
+    const uy = dy / dist;
+    f.vx += ux * accel * dt;
+    f.vy += uy * accel * dt;
+
+    if(dist < bh.eventHorizon){
+      const overlap = bh.eventHorizon - dist;
+      f.x -= ux * overlap;
+      f.y -= uy * overlap;
+      const vRadial = f.vx * ux + f.vy * uy;
+      if(vRadial > 0){
+        f.vx -= ux * vRadial * 1.6;
+        f.vy -= uy * vRadial * 1.6;
+      }
+      f.vx *= 0.98;
+      f.vy *= 0.98;
+    }
+  }
+}
+
+/* Determine if any block is "captured" by a BH — used to disable gravity for it temporarily */
+function isInBlackHoleField(x, y){
+  for(const bh of blackHoles){
+    const dx = bh.x - x;
+    const dy = bh.y - y;
+    if(dx*dx + dy*dy < bh.influence * bh.influence) return true;
+  }
+  return false;
 }
 
 /* ===================================================================
@@ -2269,34 +2618,60 @@ function tick(){
   // Reserve right margin for the vertical dock (~80px)
   const RIGHT_MARGIN = 86;
 
+  // Update black hole lifecycles
+  tickBlackHoles(dt, now);
+
   for(const s of shapes){
     if(s.dragging) continue;
-    // gravity is stronger when in the air, lighter when resting
-    s.vy += 0.22 * dt;
-    s.vx *= Math.pow(0.985, dt);
-    s.vy *= Math.pow(0.985, dt);
-    s.x += s.vx * dt;
-    s.y += s.vy * dt;
-    s.rot += s.rotV * dt;
-    s.rotV *= Math.pow(0.96, dt);
 
-    const bw = s._bbox.w, bh = s._bbox.h;
-    if(s.x < 0){ s.x = 0; s.vx = Math.abs(s.vx)*0.6;}
-    if(s.x + bw > W - RIGHT_MARGIN){ s.x = W - RIGHT_MARGIN - bw; s.vx = -Math.abs(s.vx)*0.6;}
-    if(s.y < TOP){ s.y = TOP; s.vy = Math.abs(s.vy)*0.4;}
-    if(s.y + bh > BOTTOM){
-      s.y = BOTTOM - bh;
-      // bounce only if moving fast, otherwise rest
-      if(Math.abs(s.vy) > 1.2){ s.vy = -Math.abs(s.vy)*0.32; }
-      else { s.vy = 0; }
-      // friction on ground
-      s.vx *= 0.86;
-      s.rotV *= 0.6;
-      // also damp out the rotation toward 0 when grounded
-      if(Math.abs(s.rot) > 0.2){
-        s.rot += (0 - s.rot) * 0.08 * dt;
-      } else {
-        s.rot = 0;
+    // Check if under influence of any black hole
+    const sCx = s.x + s._bbox.w/2;
+    const sCy = s.y + s._bbox.h/2;
+    const inField = isInBlackHoleField(sCx, sCy);
+
+    if(inField){
+      // ORBITAL MODE: gravity comes from black hole only, no ground rest, low air friction
+      applyBlackHoleGravity(s, dt);
+      s.vx *= Math.pow(0.998, dt); // very mild damping for stable orbits
+      s.vy *= Math.pow(0.998, dt);
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      // Spin toward velocity direction for cool effect
+      s.rotV += (Math.random()-0.5) * 0.05 * dt;
+      s.rot += s.rotV * dt;
+      s.rotV *= Math.pow(0.99, dt);
+
+      // Soft walls - bounce off edges if they fly out wide
+      const bw = s._bbox.w, bh = s._bbox.h;
+      if(s.x < -bw){ s.x = -bw; s.vx = Math.abs(s.vx)*0.5;}
+      if(s.x > W){ s.x = W; s.vx = -Math.abs(s.vx)*0.5;}
+      if(s.y < -bh){ s.y = -bh; s.vy = Math.abs(s.vy)*0.5;}
+      if(s.y > H){ s.y = H; s.vy = -Math.abs(s.vy)*0.5;}
+    } else {
+      // Normal gravity + ground physics
+      s.vy += 0.22 * dt;
+      s.vx *= Math.pow(0.985, dt);
+      s.vy *= Math.pow(0.985, dt);
+      s.x += s.vx * dt;
+      s.y += s.vy * dt;
+      s.rot += s.rotV * dt;
+      s.rotV *= Math.pow(0.96, dt);
+
+      const bw = s._bbox.w, bh = s._bbox.h;
+      if(s.x < 0){ s.x = 0; s.vx = Math.abs(s.vx)*0.6;}
+      if(s.x + bw > W - RIGHT_MARGIN){ s.x = W - RIGHT_MARGIN - bw; s.vx = -Math.abs(s.vx)*0.6;}
+      if(s.y < TOP){ s.y = TOP; s.vy = Math.abs(s.vy)*0.4;}
+      if(s.y + bh > BOTTOM){
+        s.y = BOTTOM - bh;
+        if(Math.abs(s.vy) > 1.2){ s.vy = -Math.abs(s.vy)*0.32; }
+        else { s.vy = 0; }
+        s.vx *= 0.86;
+        s.rotV *= 0.6;
+        if(Math.abs(s.rot) > 0.2){
+          s.rot += (0 - s.rot) * 0.08 * dt;
+        } else {
+          s.rot = 0;
+        }
       }
     }
 
@@ -2310,31 +2685,45 @@ function tick(){
   }
 
   // ----- Fruit physics -----
-  const FRUIT_BOTTOM = H - 50; // fruits rest a touch lower than blocks (smaller objects)
+  const FRUIT_BOTTOM = H - 50;
   const FRUIT_RIGHT_MARGIN = 86;
   for(const f of fruits){
     if(f.dragging) continue;
-    f.vy += 0.22 * dt;
-    f.vx *= Math.pow(0.985, dt);
-    f.vy *= Math.pow(0.985, dt);
-    f.x += f.vx * dt;
-    f.y += f.vy * dt;
-    f.rot += f.rotV * dt;
-    f.rotV *= Math.pow(0.96, dt);
 
-    if(f.x < 0){ f.x = 0; f.vx = Math.abs(f.vx)*0.6;}
-    if(f.x + 50 > W - FRUIT_RIGHT_MARGIN){ f.x = W - FRUIT_RIGHT_MARGIN - 50; f.vx = -Math.abs(f.vx)*0.6;}
-    if(f.y < TOP){ f.y = TOP; f.vy = Math.abs(f.vy)*0.4;}
-    if(f.y + 50 > FRUIT_BOTTOM){
-      f.y = FRUIT_BOTTOM - 50;
-      if(Math.abs(f.vy) > 1.2){ f.vy = -Math.abs(f.vy)*0.4; }
-      else { f.vy = 0; }
-      f.vx *= 0.86;
-      f.rotV *= 0.6;
-      if(Math.abs(f.rot) > 0.2){
-        f.rot += (0 - f.rot) * 0.08 * dt;
-      } else {
-        f.rot = 0;
+    const fCx = f.x + 25;
+    const fCy = f.y + 25;
+    const inField = isInBlackHoleField(fCx, fCy);
+
+    if(inField){
+      applyBlackHoleGravityToFruit(f, dt);
+      f.vx *= Math.pow(0.998, dt);
+      f.vy *= Math.pow(0.998, dt);
+      f.x += f.vx * dt;
+      f.y += f.vy * dt;
+      f.rot += f.rotV * dt;
+    } else {
+      f.vy += 0.22 * dt;
+      f.vx *= Math.pow(0.985, dt);
+      f.vy *= Math.pow(0.985, dt);
+      f.x += f.vx * dt;
+      f.y += f.vy * dt;
+      f.rot += f.rotV * dt;
+      f.rotV *= Math.pow(0.96, dt);
+
+      if(f.x < 0){ f.x = 0; f.vx = Math.abs(f.vx)*0.6;}
+      if(f.x + 50 > W - FRUIT_RIGHT_MARGIN){ f.x = W - FRUIT_RIGHT_MARGIN - 50; f.vx = -Math.abs(f.vx)*0.6;}
+      if(f.y < TOP){ f.y = TOP; f.vy = Math.abs(f.vy)*0.4;}
+      if(f.y + 50 > FRUIT_BOTTOM){
+        f.y = FRUIT_BOTTOM - 50;
+        if(Math.abs(f.vy) > 1.2){ f.vy = -Math.abs(f.vy)*0.4; }
+        else { f.vy = 0; }
+        f.vx *= 0.86;
+        f.rotV *= 0.6;
+        if(Math.abs(f.rot) > 0.2){
+          f.rot += (0 - f.rot) * 0.08 * dt;
+        } else {
+          f.rot = 0;
+        }
       }
     }
     applyFruitTransform(f);
@@ -2438,6 +2827,8 @@ function clearWorld(){
   shapes.length = 0;
   for(const f of fruits) f.el.remove();
   fruits.length = 0;
+  for(const bh of blackHoles) bh.el.remove();
+  blackHoles.length = 0;
   updateStats();
   flashToast("🧹 all clean!");
 }
